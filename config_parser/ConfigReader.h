@@ -1,5 +1,4 @@
 #pragma once
-#include <tr1/regex>
 #include <string>
 
 class ConfigReader {
