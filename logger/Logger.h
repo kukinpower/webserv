@@ -14,15 +14,15 @@ class Logger {
   }
 
   // todo add more data: time, thread
-  void info(std::string const &message) {
+  void info(std::string const &message) const {
    std::cerr << message << std::endl;
   }
 
-  void debug(std::string const &message) {
+  void debug(std::string const &message) const {
     std::cerr << message << std::endl;
   }
 
-  void error(std::string const &message) {
+  void error(std::string const &message) const {
     std::cerr << message << std::endl;
   }
 };
