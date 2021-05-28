@@ -50,20 +50,36 @@ class WebServer {
     }
   }
 
+  void acceptConnection() {
+    struct sockaddr addr;
+    socklen_t socklen;
+    int newSocket;
+    // if no connection, accept is blocking process and start waiting
+    if ((newSocket = accept(fd, (struct sockaddr *) &addr, (socklen_t *) &socklen) == -1)) {
+      LOGGER.error(LISTEN_ERROR);
+      //todo throw custom exception
+    }
+  }
+
  public:
   void run() {
     // todo add Parser and config
-    // 1. parse args
+    // todo 1. parse args
     // 2. create fd
     createSocket();
     // 3. bind
     bindAddress();
     // 4. listen
     startListening();
+    // 5. accept
+    // for now separate logic into other method, maybe change it later
+    acceptConnection();
+    // todo 6. set non blocking
     while (true) {
-
+      // for now it is just running and we can see that port 9000 is listening
+      // run this in shell to check:
+      // netstat -a -n | grep LISTEN
     }
-
   }
 
  public:
@@ -75,6 +91,7 @@ class WebServer {
   static const char *BAD_SOCKET_FD;
   static const char *BIND_ERROR;
   static const char *LISTEN_ERROR;
+  static const char *ACCEPT_ERROR;
 };
 
 const int WebServer::PORT_DEFAULT = 9000;
@@ -82,3 +99,4 @@ const int WebServer::PORT_DEFAULT = 9000;
 const char *WebServer::BAD_SOCKET_FD = "Something went wrong";
 const char *WebServer::BIND_ERROR = "Bind error";
 const char *WebServer::LISTEN_ERROR = "Listen error";
+const char *WebServer::ACCEPT_ERROR = "Accept error";
