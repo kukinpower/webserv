@@ -9,9 +9,4 @@ include_directories(logger)
 include_directories(client)
 
 add_executable(webserv
-        main.cpp
-        config_parser/ConfigReader.cpp
-        config_parser/ConfigReader.h)
-
-add_executable(other
-        other/main.cpp)
+        main.cpp)

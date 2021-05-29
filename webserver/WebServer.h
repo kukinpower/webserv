@@ -74,7 +74,7 @@ class WebServer {
   }
 
   int setReadFds(fd_set *readfds) {
-	FD_ZERO(&readfds);
+	FD_ZERO(readfds);
 	FD_SET(listenerFd, readfds);
 
 	int maxFd = listenerFd;
