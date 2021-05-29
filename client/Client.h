@@ -3,6 +3,7 @@
 class Client {
  private:
   int fd;
+  std::string request;
 
  public:
   Client(int fd) : fd(fd) {}
@@ -13,7 +14,11 @@ class Client {
 	return fd;
   }
 
+  void appendToRequest(char *chunk) {
+    request += chunk;
+  }
 
-
-
+  std::string getRequest() const {
+    return request;
+  }
 };

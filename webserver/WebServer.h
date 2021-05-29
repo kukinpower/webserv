@@ -24,42 +24,43 @@ class WebServer {
   ~WebServer() {}
 
   int getSocketFd() const {
-    return listenerFd;
+	return listenerFd;
   }
 
  private:
   void createSocket() {
 	listenerFd = socket(AF_INET, SOCK_STREAM, TCP);
-    if (listenerFd == -1) {
-      LOGGER.error(BAD_SOCKET_FD);
-      //todo throw custom exception
-    }
+	if (listenerFd == -1) {
+	  LOGGER.error(BAD_SOCKET_FD);
+	  //todo throw custom exception
+	}
   }
 
   void bindAddress() const {
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(PORT_DEFAULT);
-    addr.sin_addr.s_addr = INADDR_ANY;
-    if (0 != bind(listenerFd, (struct sockaddr *) &addr, sizeof(addr))) {
-      LOGGER.error(BIND_ERROR);
-      //todo throw custom exception
-    }
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(PORT_DEFAULT);
+	addr.sin_addr.s_addr = INADDR_ANY;
+	if (0 != bind(listenerFd, (struct sockaddr *) &addr, sizeof(addr))) {
+	  LOGGER.error(BIND_ERROR);
+	  //todo throw custom exception
+	}
   }
 
   void startListening() {
-    if (-1 == listen(listenerFd, 5)) {
-      LOGGER.error(LISTEN_ERROR);
-      //todo throw custom exception
-    }
+	if (-1 == listen(listenerFd, 5)) {
+	  LOGGER.error(LISTEN_ERROR);
+	  //todo throw custom exception
+	}
   }
 
   int acceptConnection(int maxFd) {
 	struct sockaddr addr;
 	socklen_t socklen;
 	int newClientFd;
+
 	// if no connection, accept is blocking process and start waiting
-	if ((newClientFd = accept(listenerFd, (struct sockaddr *) &addr, (socklen_t *) &socklen) == -1)) {
+	if ((newClientFd = accept(listenerFd, (struct sockaddr *) &addr, &socklen)) == -1) {
 	  LOGGER.error(ACCEPT_ERROR);
 	  //todo throw custom exception
 	}
@@ -89,23 +90,30 @@ class WebServer {
   }
 
   void processSelect() {
-    fd_set readfds;
+	fd_set readfds;
     int maxFd = setReadFds(&readfds);
 
-    int res;
-    if ((res = select(maxFd + 1, &readfds, NULL, NULL, NULL)) < 1) {
-      LOGGER.error(SELECT_ERROR);
-      // todo throw custom exception
-    }
+	int res;
+	if ((res = select(maxFd + 1, &readfds, NULL, NULL, NULL)) < 1) {
+	  LOGGER.error(SELECT_ERROR);
+	  // todo throw custom exception
+	}
 
-    if (FD_ISSET(listenerFd, &readfds)) {
+	if (FD_ISSET(listenerFd, &readfds)) {
 	  maxFd = acceptConnection(maxFd);
-    }
+	}
 
 	for (std::vector<Client>::iterator it = clients.begin();
 		 it != clients.end(); ++it) {
 	  if (FD_ISSET(it->getFd(), &readfds)) {
-
+		int nbytes;
+		char buf[BUF_SIZE + 1];
+		if ((nbytes = recv(it->getFd(), buf, BUF_SIZE, 0)) == -1) {
+		  LOGGER.error(RECV_ERROR);
+		}
+		buf[nbytes] = 0;
+		it->appendToRequest(buf);
+		LOGGER.info("BUF: " + std::string(buf));
 	  }
 	}
   }
@@ -116,7 +124,7 @@ class WebServer {
 	  // for now it is just running and we can see that port 9000 is listening
 	  // run this in shell to check:
 	  // netstat -a -n | grep LISTEN
-	// todo 6. set non blocking
+	  // todo 6. set non blocking
 	}
   }
 
@@ -126,6 +134,8 @@ class WebServer {
 	// todo 1. parse args
 	// 2. create listenerFd
 	createSocket();
+	int yes = 1;
+	setsockopt(listenerFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 	// 3. bind
 	bindAddress();
 	// 4. listen
@@ -136,6 +146,7 @@ class WebServer {
 
  public:
   // constants to use
+  static const int BUF_SIZE = 256;
   static const int TCP = 0;
   static const int PORT_DEFAULT;
 
@@ -146,9 +157,10 @@ class WebServer {
   static const char *SELECT_ERROR;
   static const char *ACCEPT_ERROR;
   static const char *FCNTL_ERROR;
+  static const char *RECV_ERROR;
 };
 
-const int WebServer::PORT_DEFAULT = 9000;
+const int WebServer::PORT_DEFAULT = 8080;
 
 const char *WebServer::BAD_SOCKET_FD = "Something went wrong";
 const char *WebServer::BIND_ERROR = "Bind error";
@@ -156,3 +168,4 @@ const char *WebServer::LISTEN_ERROR = "Listen error";
 const char *WebServer::SELECT_ERROR = "Select error";
 const char *WebServer::ACCEPT_ERROR = "Accept error";
 const char *WebServer::FCNTL_ERROR = "Fcntl error";
+const char *WebServer::RECV_ERROR = "Recv error";
