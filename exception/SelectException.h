@@ -6,5 +6,5 @@ class SelectException : public RuntimeWebServException {
  public:
   SelectException() : RuntimeWebServException(SELECT_ERROR) {}
 
-  SelectException(const char *msg) : RuntimeWebServException(msg) {}
+  SelectException(const std::string &msg) : RuntimeWebServException(msg) {}
 };

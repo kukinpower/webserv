@@ -1,20 +1,26 @@
 #pragma once
 #include <exception>
-#include <stdarg.h>
 #include <sstream>
+#include <string>
 
 class WebServException : public std::exception {
  public:
-  WebServException(const char *msg) : exception() {
+  WebServException(const std::string &msg) {
     message = msg;
   }
 
   virtual const char *what() const throw() {
-    return message;
+    return message.c_str();
   }
 
- protected:
-  const char *message;
+  virtual ~WebServException() throw() {}
+
+  WebServException(const WebServException &o) throw() {
+    this->message = o.message;
+  }
+
+ private:
+  std::string message;
 
  public:
   static const char *FATAL_ERROR;
@@ -26,6 +32,7 @@ class WebServException : public std::exception {
   static const char *ACCEPT_ERROR;
   static const char *FCNTL_ERROR;
   static const char *RECV_ERROR;
+  static const char *NON_BLOCK_ERROR;
 };
 
 const char *WebServException::FATAL_ERROR = "FATAL ERROR";
@@ -37,3 +44,4 @@ const char *WebServException::SELECT_ERROR = "Select error";
 const char *WebServException::ACCEPT_ERROR = "Accept error";
 const char *WebServException::FCNTL_ERROR = "Fcntl error";
 const char *WebServException::RECV_ERROR = "Recv error";
+const char *WebServException::NON_BLOCK_ERROR = "Non block error";
