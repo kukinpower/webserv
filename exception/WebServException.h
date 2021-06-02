@@ -31,7 +31,7 @@ class WebServException : public std::exception {
   static const char *LISTEN_ERROR;
   static const char *ACCEPT_ERROR;
   static const char *FCNTL_ERROR;
-  static const char *RECV_ERROR;
+  static const char *READ_ERROR;
   static const char *NON_BLOCK_ERROR;
 };
 
@@ -43,5 +43,5 @@ const char *WebServException::LISTEN_ERROR = "Listen error";
 const char *WebServException::SELECT_ERROR = "Select error";
 const char *WebServException::ACCEPT_ERROR = "Accept error";
 const char *WebServException::FCNTL_ERROR = "Fcntl error";
-const char *WebServException::RECV_ERROR = "Recv error";
+const char *WebServException::READ_ERROR = "Read error";
 const char *WebServException::NON_BLOCK_ERROR = "Non block error";

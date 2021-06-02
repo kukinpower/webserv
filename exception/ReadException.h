@@ -4,7 +4,7 @@
 class ReadException : public RuntimeWebServException {
 
  public:
-  ReadException() : RuntimeWebServException(RECV_ERROR) {}
+  ReadException() : RuntimeWebServException(READ_ERROR) {}
 
   ReadException(const std::string &msg) : RuntimeWebServException(msg) {}
 };
