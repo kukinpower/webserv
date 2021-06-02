@@ -8,6 +8,8 @@ include_directories(webserver)
 include_directories(logger)
 include_directories(client)
 include_directories(exception)
+include_directories(request)
+include_directories(response)
 
 add_executable(webserv
         main.cpp)

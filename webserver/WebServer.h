@@ -22,6 +22,12 @@
 
 
 class WebServer {
+ public:
+  // constants to use
+  static const int BUF_SIZE = 256;
+  static const int TCP = 0;
+  static const int PORT_DEFAULT = 8080;
+
  private:
   Logger LOGGER;
 
@@ -107,6 +113,17 @@ class WebServer {
     return maxFd;
   }
 
+  void readRequest(std::vector<Client>::iterator it) {
+    int nbytes;
+    char buf[BUF_SIZE + 1];
+    if ((nbytes = recv(it->getFd(), buf, BUF_SIZE, 0)) == -1) {
+      throw ReadException();
+    }
+    buf[nbytes] = 0;
+    it->appendToRequest(buf);
+    LOGGER.info("BUF: " + std::string(buf));
+  }
+
   void processSelect() {
     fd_set readfds;
     int maxFd = setReadFds(&readfds);
@@ -118,20 +135,21 @@ class WebServer {
     }
 
     if (FD_ISSET(listenerFd, &readfds)) {
-      maxFd = acceptConnection(maxFd);
+      try {
+        maxFd = acceptConnection(maxFd);
+      } catch (const RuntimeWebServException &e) {
+        LOGGER.error(e.what());
+      }
     }
 
     for (std::vector<Client>::iterator it = clients.begin();
          it != clients.end(); ++it) {
       if (FD_ISSET(it->getFd(), &readfds)) {
-        int nbytes;
-        char buf[BUF_SIZE + 1];
-        if ((nbytes = recv(it->getFd(), buf, BUF_SIZE, 0)) == -1) {
-          throw ReadException();
+        try {
+          readRequest(it);
+        } catch (const RuntimeWebServException &e) {
+          LOGGER.error(e.what());
         }
-        buf[nbytes] = 0;
-        it->appendToRequest(buf);
-        LOGGER.info("BUF: " + std::string(buf));
       }
     }
   }
@@ -154,7 +172,6 @@ class WebServer {
 
  public:
   void run() {
-
     // todo add Parser and config
     // todo 1. parse args
     try {
@@ -175,13 +192,4 @@ class WebServer {
       exit(1);
     }
   }
-
- public:
-  // constants to use
-  static const int BUF_SIZE = 256;
-  static const int TCP = 0;
-  static const int PORT_DEFAULT;
-
 };
-
-const int WebServer::PORT_DEFAULT = 8080;
