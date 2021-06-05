@@ -10,6 +10,7 @@ include_directories(client)
 include_directories(exception)
 include_directories(request)
 include_directories(response)
+include_directories(server)
 
 add_executable(webserv
         main.cpp)
