@@ -76,7 +76,7 @@ class WebServer {
   }
 
   void startListening() {
-    if (-1 == listen(listenerFd, 5)) {
+    if (-1 == listen(listenerFd, 5)) { //todo const
       throw ListenException();
     }
   }
@@ -125,16 +125,18 @@ class WebServer {
   }
 
   void processSelect() {
-    fd_set readfds;
+    fd_set readfds; // set fd
+//    fd_set writefds;
     int maxFd = setReadFds(&readfds);
 
     int res;
+    // timeout maybe
     if ((res = select(maxFd + 1, &readfds, NULL, NULL, NULL)) < 1) {
       LOGGER.error(WebServException::SELECT_ERROR);
       throw SelectException();
     }
 
-    if (FD_ISSET(listenerFd, &readfds)) {
+    if (FD_ISSET(listenerFd, &readfds)) { // new connection
       try {
         maxFd = acceptConnection(maxFd);
       } catch (const RuntimeWebServException &e) {
@@ -147,6 +149,8 @@ class WebServer {
       if (FD_ISSET(it->getFd(), &readfds)) {
         try {
           readRequest(it);
+          // \r\n\r\n
+          // callCgi()
         } catch (const RuntimeWebServException &e) {
           LOGGER.error(e.what());
         }
@@ -171,6 +175,10 @@ class WebServer {
   }
 
  public:
+  void parseConfig() {
+
+  }
+
   void run() {
     // todo add Parser and config
     // todo 1. parse args
