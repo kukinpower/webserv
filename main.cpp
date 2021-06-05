@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 
 int main(int ac, char *av[]) {
-  //todo config with args
+  // todo config with args
   (void)ac;
   (void)av;
 
@@ -17,7 +17,7 @@ int main(int ac, char *av[]) {
   // todo pass arguments to it's run() method
     server.run();
   } catch (std::exception &e) {
-    //todo error management
+    // todo error management
     Logger LOGGER;
     LOGGER.error(e.what());
     return 1;
