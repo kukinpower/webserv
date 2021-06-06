@@ -90,17 +90,15 @@ class Client {
         return;
       }
 
+      requestBody = requestBody.erase(0, pos);
+
       if (Request::hasBodyLength(requestHeaders)) {
         size_t length = Request::getLengthFromHeaders(requestHeaders);
-        body = Request::extractHttpBodyByLength(requestBody, pos, length);
-      } else {
-        requestBody.erase(0, pos);
+        body = requestBody.substr(0, length);
+        requestBody = requestBody.erase(0, length);
       }
+
       requests.push_back(Request(method, path, requestHeaders, body));
-
-
-//      requests.push_back(Request::parseRequest(headersToken));
-
     }
   }
 
@@ -128,16 +126,14 @@ class Client {
     bool hasNewRequests = false;
     if (containsRequestEnd()) {
       hasNewRequests = true;
-//      parseRequests();
+      parseRequests();
     }
     return hasNewRequests;
   }
 
-
-
-//  Request processRequest() {
-//
-//  }
+  std::vector<Request> &getRequests() {
+    return requests;
+  }
 
   void sendResponse(const Response &response) {
 

@@ -45,6 +45,7 @@ class Request {
     this->method = request.method;
     this->path = request.path;
     this->headers = request.headers;
+    this->body = request.body;
     return *this;
   }
 
@@ -56,22 +57,18 @@ class Request {
 
     while (std::getline(ss, line)) {
       size_t pos;
-      if ((pos = line.find(HEADER_DELIMETER)) != std::string::npos) {
+      if ((pos = line.find(HEADER_DELIMETER, 0)) == std::string::npos) {
         break;
       }
       std::string key = line.substr(0, pos);
       line.erase(0, pos + HEADER_DELIMETER_LENGTH);
-      requestHeaders.insert(std::make_pair(key, line));
+      requestHeaders.insert(std::make_pair(key, line.substr(0, line.find("\r"))));
     }
     return requestHeaders;
   }
 
   static size_t getLengthFromHeaders(const Headers &requestHeaders) {
     return std::atoi(requestHeaders.find("Content-Length")->second.c_str());
-  }
-
-  static std::string extractHttpBodyByLength(const std::string &bodyToken, size_t pos, size_t length) {
-    return bodyToken.substr(pos, length);
   }
 
   static bool hasBodyLength(const Headers &requestHeaders) {
@@ -115,4 +112,3 @@ class Request {
 
 const char *Request::HEADER_DELIMETER = ": ";
 const Request::MimeTypes Request::MIME = initMimeTypes();
-
