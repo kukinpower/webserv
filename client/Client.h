@@ -144,6 +144,9 @@ class Client {
   ClientStatus getStatus() const {
     return status;
   }
+  void setStatus(ClientStatus status) {
+    this->status = status;
+  }
 
 };
 
