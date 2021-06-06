@@ -34,6 +34,7 @@ class Client {
   Logger LOGGER;
   std::vector<Request> requests;
   ClientStatus status;
+  size_t cursorLength;
 
  public:
   Client(int fd) : fd(fd), status(READ) {}
@@ -69,6 +70,7 @@ class Client {
 
  private:
 
+  // todo use cursorLength ?
   void parseRequests() {
     size_t pos = 0;
     std::string headersToken;
@@ -83,6 +85,7 @@ class Client {
       pos += REQUEST_END_LENGTH;
       std::string body = "";
 
+      // todo what if not full body is read?
       if (Request::hasConnectionClose(requestHeaders)) {
         body = requestBody.substr(pos);
         requests.push_back(Request(method, path, requestHeaders, body));
@@ -100,6 +103,7 @@ class Client {
 
       requests.push_back(Request(method, path, requestHeaders, body));
     }
+    status = WRITE;
   }
 
   void readRequestChunk() {
@@ -110,25 +114,23 @@ class Client {
       throw ReadException();
     }
     if (bytesRead == 0) {
+      // todo if we are here, we hadn't read anything
+      //  and no responses are pending
       close(fd);
       status = CLOSED;
       return;
     }
     buf[bytesRead] = 0;
     appendToRequest(buf);
-    // check \r\n\r\n
-    LOGGER.info(std::string(buf));
+    LOGGER.debug(std::string(buf));
   }
 
  public:
-  bool processReading() {
+  void processReading() {
     readRequestChunk();
-    bool hasNewRequests = false;
-    if (containsRequestEnd()) {
-      hasNewRequests = true;
+    if (containsRequestEnd() || status == WAITING_BODY) {
       parseRequests();
     }
-    return hasNewRequests;
   }
 
   std::vector<Request> &getRequests() {
@@ -139,6 +141,11 @@ class Client {
 
   }
 
+  ClientStatus getStatus() const {
+    return status;
+  }
+
 };
 
 const char *Client::REQUEST_END = "\r\n\r\n";
+
