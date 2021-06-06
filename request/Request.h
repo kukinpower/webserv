@@ -95,20 +95,24 @@ class Request {
     return line.substr(start, end - start);
   }
 
-  Method GetMethod() const {
+  Method getMethod() const {
     return method;
   }
-  const std::string &GetPath() const {
+  const std::string &getPath() const {
     return path;
   }
-  const Headers &GetHeaders() const {
+  const Headers &getHeaders() const {
     return headers;
   }
-  const std::string &GetBody() const {
+  const std::string &getBody() const {
     return body;
+  }
+  void setBody(const std::string &body) {
+    this->body = body;
   }
 
 };
 
 const char *Request::HEADER_DELIMETER = ": ";
 const Request::MimeTypes Request::MIME = initMimeTypes();
+

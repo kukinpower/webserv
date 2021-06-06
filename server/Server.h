@@ -108,8 +108,9 @@ class Server {
 	return std::max(maxFd, newClientFd);
   }
 
-  int setReadFds(fd_set *readfds) {
+  int setFdSets(fd_set *readfds, fd_set *writefds) {
 	FD_ZERO(readfds);
+	FD_ZERO(writefds);
 	FD_SET(listenerFd, readfds);
 
 	int maxFd = listenerFd;
@@ -117,6 +118,9 @@ class Server {
 		 it != clients.end(); ++it) {
 	  int fd = it->getFd();
 	  FD_SET(fd, readfds);
+	  if (it->getStatus() == WRITE) {
+	    FD_SET(fd, writefds);
+	  }
 	  maxFd = std::max(maxFd, fd);
 	}
 
@@ -127,10 +131,10 @@ class Server {
   void processSelect() {
 	fd_set readfds;
 	fd_set writefds;
-	int maxFd = setReadFds(&readfds);
+	int maxFd = setFdSets(&readfds, &writefds);
 
 	int selectedFdsCount;
-	if ((selectedFdsCount = select(maxFd + 1, &readfds, NULL, NULL, NULL)) < 1) {
+	if ((selectedFdsCount = select(maxFd + 1, &readfds, &writefds, NULL, NULL)) < 1) {
 	  LOGGER.error(WebServException::SELECT_ERROR);
 	  throw SelectException();
 	}
@@ -145,10 +149,16 @@ class Server {
 
 	for (std::vector<Client>::iterator client = clients.begin();
 		 client != clients.end(); ++client) {
+	  if (FD_ISSET(client->getFd(), &writefds)) {
+	    for (std::vector<Request>::iterator request = client->getRequests().begin();
+             request != client->getRequests().end(); ++request) {
+	      Response response(*request);
+          send(client->getFd(), response.generateResponse().c_str(), response.generateResponse().length(), 0);
+	    }
+	  }
 	  if (FD_ISSET(client->getFd(), &readfds)) {
 		try {
 		  client->processReading();
-		  // \r\n\r\n
 		  // callCgi()
 		} catch (const RuntimeWebServException &e) {
 		  LOGGER.error(e.what());
