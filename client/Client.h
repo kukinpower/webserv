@@ -2,7 +2,7 @@
 #include "Request.h"
 #include "Response.h"
 #include "Logger.h"
-#include "Client.h"
+#include "ClientStatus.h"
 
 #include "SelectException.h"
 #include "BadListenerFdException.h"
@@ -17,6 +17,8 @@
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>     /* atoi */
 
 #include <vector>
 #include <iostream>
@@ -31,9 +33,10 @@ class Client {
   std::string requestBody;
   Logger LOGGER;
   std::vector<Request> requests;
+  ClientStatus status;
 
  public:
-  Client(int fd) : fd(fd) {}
+  Client(int fd) : fd(fd), status(READ) {}
   virtual ~Client() {}
 
   Client(const Client &request) {
@@ -43,12 +46,13 @@ class Client {
     this->fd = request.fd;
     this->requestBody = request.requestBody;
     this->requests = request.requests;
+    this->status = request.status;
     return *this;
   }
 
  public:
   int getFd() const {
-	return fd;
+    return fd;
   }
 
   void appendToRequest(char *chunk) {
@@ -64,13 +68,39 @@ class Client {
   }
 
  private:
+
   void parseRequests() {
     size_t pos = 0;
-    std::string token;
+    std::string headersToken;
     while ((pos = requestBody.find(REQUEST_END)) != std::string::npos) {
-      token = requestBody.substr(0, pos);
-      requests.push_back(Request::parseRequest(token));
-      requestBody.erase(0, pos + REQUEST_END_LENGTH);
+      const std::string &headerFull = requestBody.substr(0, pos);
+      size_t headersStart = headerFull.find("\r\n") + 2;
+      const std::string &mainLine = headerFull.substr(0, headerFull.find("\r\n"));
+
+      Method method = Request::extractMethod(mainLine);
+      const std::string &path = Request::extractPath(mainLine);
+      Request::Headers requestHeaders = Request::extractHttpHeaders(requestBody.substr(headersStart, pos - headersStart));
+      pos += REQUEST_END_LENGTH;
+      std::string body = "";
+
+      if (Request::hasConnectionClose(requestHeaders)) {
+        body = requestBody.substr(pos);
+        requests.push_back(Request(method, path, requestHeaders, body));
+        status = CLOSED;
+        return;
+      }
+
+      if (Request::hasBodyLength(requestHeaders)) {
+        size_t length = Request::getLengthFromHeaders(requestHeaders);
+        body = Request::extractHttpBodyByLength(requestBody, pos, length);
+      } else {
+        requestBody.erase(0, pos);
+      }
+      requests.push_back(Request(method, path, requestHeaders, body));
+
+
+//      requests.push_back(Request::parseRequest(headersToken));
+
     }
   }
 
@@ -80,6 +110,11 @@ class Client {
 
     if ((bytesRead = recv(fd, buf, BUF_SIZE, 0)) == -1) {
       throw ReadException();
+    }
+    if (bytesRead == 0) {
+      close(fd);
+      status = CLOSED;
+      return;
     }
     buf[bytesRead] = 0;
     appendToRequest(buf);

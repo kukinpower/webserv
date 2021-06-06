@@ -6,6 +6,10 @@
 #include <map>
 
 class Request {
+ public:
+  typedef std::map<std::string, std::string> Headers;
+  typedef std::map<std::string, std::string> MimeTypes;
+
  private:
   // constants
   static const int REQUEST_MAX_LENGTH_DEFAULT = 100000000; // 100_000_000
@@ -14,16 +18,29 @@ class Request {
   // vars
   Method method;
   std::string path;
-  std::map<std::string, std::string> headers;
+  Headers headers;
+  std::string body;
+  static const MimeTypes MIME;
+
+  static Headers initMimeTypes() {
+    Headers mime;
+    mime.insert(std::make_pair(".htm", "text/html"));
+    mime.insert(std::make_pair(".html", "text/html"));
+    mime.insert(std::make_pair(".jpg", "image/jpeg"));
+    mime.insert(std::make_pair(".jpeg", "image/jpeg"));
+    mime.insert(std::make_pair(".js", "text/javascript"));
+    return mime;
+  }
 
  public:
-  Request(Method method, const std::string &path, const std::map<std::string, std::string> &headers)
-      : method(method), path(path), headers(headers) {}
+  Request(Method method, const std::string &path, const std::map<std::string, std::string> &headers, const std::string &body = "")
+      : method(method), path(path), headers(headers), body(body) {}
 
   virtual ~Request() {}
   Request(const Request &request) {
     operator=(request);
   }
+
   Request &operator=(const Request &request) {
     this->method = request.method;
     this->path = request.path;
@@ -32,9 +49,9 @@ class Request {
   }
 
  public:
-
-  static std::map<std::string, std::string> extractHeaders(std::stringstream &ss) {
-    std::map<std::string, std::string> requestHeaders;
+  static Headers extractHttpHeaders(const std::string &headersToken) {
+    std::stringstream ss(headersToken);
+    Headers requestHeaders;
     std::string line;
 
     while (std::getline(ss, line)) {
@@ -49,19 +66,53 @@ class Request {
     return requestHeaders;
   }
 
-  static Request parseRequest(const std::string &requestBody) {
-    if (requestBody.length() > REQUEST_MAX_LENGTH_DEFAULT) {
-      throw MaxRequestSizeExceededException();
-    }
-    std::stringstream ss(requestBody);
-    std::map<std::string, std::string> requestHeaders = extractHeaders(ss);
-
-    //todo------------------------------------------------------------
-    for (const auto &a : requestHeaders) {
-      std::cout << a.first << " " << a.second;
-    }
-    return Request(GET, "some path", requestHeaders);
+  static size_t getLengthFromHeaders(const Headers &requestHeaders) {
+    return std::atoi(requestHeaders.find("Content-Length")->second.c_str());
   }
+
+  static std::string extractHttpBodyByLength(const std::string &bodyToken, size_t pos, size_t length) {
+    return bodyToken.substr(pos, length);
+  }
+
+  static bool hasBodyLength(const Headers &requestHeaders) {
+    return requestHeaders.count("Content-Length") != 0;
+  }
+
+  static bool hasConnectionClose(const Headers &requestHeaders) {
+    return (requestHeaders.count("Connection") != 0 && requestHeaders.find("Connection")->second == "Close");
+  }
+
+  static Method extractMethod(const std::string &line) {
+    if (line.find("POST") != line.npos) {
+      return POST;
+    }
+    if (line.find("DELETE") != line.npos) {
+      return DELETE;
+    }
+    return GET;
+  }
+
+  static std::string extractPath(const std::string &line) {
+    size_t start = line.find(" ") + 1;
+    size_t end = line.rfind(" ");
+    return line.substr(start, end - start);
+  }
+
+  Method GetMethod() const {
+    return method;
+  }
+  const std::string &GetPath() const {
+    return path;
+  }
+  const Headers &GetHeaders() const {
+    return headers;
+  }
+  const std::string &GetBody() const {
+    return body;
+  }
+
 };
 
 const char *Request::HEADER_DELIMETER = ": ";
+const Request::MimeTypes Request::MIME = initMimeTypes();
+

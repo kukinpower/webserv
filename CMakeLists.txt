@@ -14,3 +14,6 @@ include_directories(server)
 
 add_executable(webserv
         main.cpp)
+
+add_executable(test
+        test.cpp)

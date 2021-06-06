@@ -126,6 +126,7 @@ class Server {
   // todo maybe fd_set writefds & timeout
   void processSelect() {
 	fd_set readfds;
+	fd_set writefds;
 	int maxFd = setReadFds(&readfds);
 
 	int selectedFdsCount;
