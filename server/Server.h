@@ -153,7 +153,11 @@ class Server {
 	    for (std::vector<Request>::iterator request = client->getRequests().begin();
              request != client->getRequests().end(); ++request) {
 	      Response response(*request);
-          send(client->getFd(), response.generateResponse().c_str(), response.generateResponse().length(), 0);
+          if (send(client->getFd(), response.generateResponse().c_str(), response.generateResponse().length(), 0) == -1) {
+            LOGGER.error("Bad send");
+            //todo throw custom exception
+          }
+          client->setStatus(READ); // todo maybe creates some bugs, find out how to check if needed closing
 	    }
 	  }
 	  if (FD_ISSET(client->getFd(), &readfds)) {
