@@ -20,6 +20,9 @@ class WebServException : public std::exception {
   }
 
  private:
+  WebServException &operator=(const WebServException &request) {return *this;}
+
+ private:
   std::string message;
 
  public:
@@ -33,6 +36,8 @@ class WebServException : public std::exception {
   static const char *FCNTL_ERROR;
   static const char *READ_ERROR;
   static const char *NON_BLOCK_ERROR;
+
+  static const char *MAX_REQ_SIZE_EXCEEDED;
 };
 
 const char *WebServException::FATAL_ERROR = "FATAL ERROR";
@@ -45,3 +50,5 @@ const char *WebServException::ACCEPT_ERROR = "Accept error";
 const char *WebServException::FCNTL_ERROR = "Fcntl error";
 const char *WebServException::READ_ERROR = "Read error";
 const char *WebServException::NON_BLOCK_ERROR = "Non block error";
+
+const char *WebServException::MAX_REQ_SIZE_EXCEEDED = "Maximum request size body exceeded";

@@ -30,19 +30,27 @@ class Server {
   static const int BUF_SIZE = 256;
   // vars
   std::vector<Client> clients;
+  int maxBodySize;
   // std::vector<Location> locations;
   int listenerFd;
   int port;
 
  public:
-  Server(int port) {
-	this->port = port;
-	listenerFd = -1;
+  Server(int port, int maxBodySize = 100000000)
+  : port(port), maxBodySize(maxBodySize), listenerFd(-1) {
   }
-  ~Server() {}
 
-  int getSocketFd() const {
-	return listenerFd;
+  virtual ~Server() {}
+
+  Server(const Server &server) {
+    operator=(server);
+  }
+  Server &operator=(const Server &server) {
+    this->clients = server.clients;
+    this->maxBodySize = server.maxBodySize;
+    this->listenerFd = server.listenerFd;
+    this->port = server.port;
+    return *this;
   }
 
  private:
@@ -138,7 +146,7 @@ class Server {
 		 client != clients.end(); ++client) {
 	  if (FD_ISSET(client->getFd(), &readfds)) {
 		try {
-		  client->readRequestChunk();
+		  client->processReading();
 		  // \r\n\r\n
 		  // callCgi()
 		} catch (const RuntimeWebServException &e) {
@@ -160,5 +168,9 @@ class Server {
 	// check that port is listening:
 	// netstat -a -n | grep LISTEN
 	startListening();
+  }
+
+  int getSocketFd() const {
+    return listenerFd;
   }
 };
