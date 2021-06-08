@@ -151,4 +151,3 @@ class Client {
 };
 
 const char *Client::REQUEST_END = "\r\n\r\n";
-

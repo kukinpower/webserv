@@ -151,7 +151,8 @@ class Server {
 		 client != clients.end(); ++client) {
 	  if (FD_ISSET(client->getFd(), &writefds)) {
 	    for (std::vector<Request>::iterator request = client->getRequests().begin();
-             request != client->getRequests().end(); ++request) {
+             request != client->getRequests().end();
+             ++request) {
 	      Response response(*request);
           if (send(client->getFd(), response.generateResponse().c_str(), response.generateResponse().length(), 0) == -1) {
             LOGGER.error("Bad send");
