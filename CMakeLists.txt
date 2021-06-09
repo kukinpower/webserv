@@ -11,9 +11,10 @@ include_directories(exception)
 include_directories(request)
 include_directories(response)
 include_directories(server)
+include_directories(cgi_handler)
 
 add_executable(webserv
         main.cpp)
 
-add_executable(test
-        test.cpp)
+#add_executable(test
+#        test.cpp)
