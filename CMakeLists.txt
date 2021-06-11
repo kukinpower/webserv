@@ -16,5 +16,8 @@ include_directories(cgi_handler)
 add_executable(webserv
         main.cpp)
 
+#add_executable(cgitest
+#        cgi_handler/test_cgi.cpp)
+
 #add_executable(test
 #        test.cpp)

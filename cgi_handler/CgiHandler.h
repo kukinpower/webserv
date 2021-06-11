@@ -3,6 +3,9 @@
 #include "WebServException.h"
 #include "FatalWebServException.h"
 #include "Logger.h"
+#include "Client.h"
+#include "Location.hpp"
+#include "Server.hpp"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -62,51 +65,58 @@ class CgiHandler {
     env[SERVER_SOFTWARE] = "WebServ/42.0";
   }
 
-  CgiHandler(const std::string &request) { //: request.getBody() {
-//    int port = Server.getPort();
-//    std::stringstream ss;
-//    ss << port;
-//    std::string literalPort = ss.str();
-//    ss.str("");
-//    int bodySize = body.size();
-//    ss << bodySize;
-//    std::string literalBodySize = ss.str();
 
-    env[AUTH_TYPE] = "!request.getHeaders()[Authorization]";
-//    env[CONTENT_LENGTH] = literalBodySize;
-    env[CONTENT_TYPE] = "!request.getHeaders()[Content-Type]";
+
+  CgiHandler(const Request &request, const Location &location) : body(request.getBody()) {
+//    std::string literalPort = _toLiteral(Server.getPort());
+//    env[SERVER_PORT] = literalPort;
+//    env[REMOTEaddr] = literalPort;
+    std::string literalBodySize = _toLiteral(body.size());
+    env[CONTENT_LENGTH] = literalBodySize;
+    if (request.getHeaders().find("Authorization") != request.getHeaders().end()) {
+      std::map<std::string, std::string>::const_iterator it = request.getHeaders().find("Authorization");
+      env[AUTH_TYPE] = it->second;
+      env[REMOTE_IDENT] = it->second;
+      env[REMOTE_USER] = it->second;
+    } else {
+      env[AUTH_TYPE] = "";
+      env[REMOTE_IDENT] = "";
+      env[REMOTE_USER] = "";
+    }
+    if (request.getHeaders().find("Content-Type") != request.getHeaders().end()) {
+      std::map<std::string, std::string>::const_iterator it = request.getHeaders().find("Content-Type");
+      env[CONTENT_TYPE] = it->second;
+    } else {
+      env[CONTENT_TYPE] = "";
+    }
     env[GATEWAY_INTERFACE] = "CGI/1.1";
-    env[PATH_INFO] = "!request.getPath()";
-    env[PATH_TRANSLATED] = "!request.getPath()";
+    env[PATH_INFO] = request.getPath();
+    env[PATH_TRANSLATED] = request.getPath();
     env[QUERY_STRING] = "!"; //QUERY_STRING
     env[REDIRECT_STATUS] = "200"; //for php-cgi
-    env[REMOTEaddr] = "!literalPort";
-    env[REMOTE_IDENT] = "!request.getHeaders()[Authorization]";
-    env[REMOTE_USER] = "!request.getHeaders()[Authorization]";
     env[REQUEST_URI] = "!request.getPath() + ..."; //QUERY_STRING
 
-//    Method m = request.getMethod();
-//    if (m == POST)
-//      env[REQUEST_METHOD] = "!POST";
-//    else if (m == GET)
-//      env[REQUEST_METHOD] = "!GET";
-//    else
-//      env[REQUEST_METHOD] = "!DELETE";
+    Method m = request.getMethod();
+    if (m == POST)
+      env[REQUEST_METHOD] = "POST";
+    else if (m == GET)
+      env[REQUEST_METHOD] = "GET";
+    else
+      env[REQUEST_METHOD] = "DELETE";
 
-    env[SCRIPT_NAME] = "!Location.getCgiPath";
-    env[SCRIPT_FILENAME] = "!Location.getCgiPath";
+    env[SCRIPT_NAME] = location.getCgiPath();
+    env[SCRIPT_FILENAME] = location.getCgiPath();
     env[SERVER_NAME] = "!Server.getServerName()";
-    env[SERVER_PORT] = "!literalPort";
     env[SERVER_PROTOCOL] = "HTTP/1.1";
     env[SERVER_SOFTWARE] = "WebServ/42.0";
 
-  } //todo add requestConfig and parse request
+  }
   virtual ~CgiHandler() {}
 
   std::string runScript(const std::string &script) {
     char **envVars;
     try {
-      envVars = getEnv();
+      envVars = _getEnv();
     }
     catch (std::bad_alloc &e) {
       LOGGER.error(e.what());
@@ -170,7 +180,7 @@ class CgiHandler {
   CgiHandler &operator=(CgiHandler const &src) {return *this;}
 
   //heap allocation
-  char **getEnv() const {
+  char **_getEnv() const {
     char **envVars = new char*[env.size() + 1];
     envVars[env.size()] = NULL;
     int i = 0;
@@ -181,6 +191,12 @@ class CgiHandler {
       strcpy(envVars[i], keyValue.c_str());
     }
     return envVars;
+  }
+
+  std::string _toLiteral(int num) {
+    std::stringstream ss;
+    ss << num;
+    return ss.str();
   }
 
   std::map<std::string, std::string> env;

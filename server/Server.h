@@ -152,7 +152,7 @@ class Server {
 	  if (FD_ISSET(client->getFd(), &writefds)) {
 	    for (std::vector<Request>::iterator request = client->getRequests().begin();
              request != client->getRequests().end(); ++request) {
-	      Response response(*request);
+	      Response response(*request); //add location
           if (send(client->getFd(), response.generateResponse().c_str(), response.generateResponse().length(), 0) == -1) {
             LOGGER.error("Bad send");
             //todo throw custom exception
@@ -163,7 +163,6 @@ class Server {
 	  if (FD_ISSET(client->getFd(), &readfds)) {
 		try {
 		  client->processReading();
-		  // callCgi()
 		} catch (const RuntimeWebServException &e) {
 		  LOGGER.error(e.what());
 		}
