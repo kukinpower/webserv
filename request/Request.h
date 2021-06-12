@@ -33,7 +33,10 @@ class Request {
   }
 
  public:
-  Request(Method method, const std::string &path, const std::map<std::string, std::string> &headers, const std::string &body = "")
+  Request(Method method,
+          const std::string &path,
+          const std::map<std::string, std::string> &headers,
+          const std::string &body = "")
       : method(method), path(path), headers(headers), body(body) {}
 
   virtual ~Request() {}
@@ -115,4 +118,3 @@ class Request {
 
 const char *Request::HEADER_DELIMETER = ": ";
 const Request::MimeTypes Request::MIME = initMimeTypes();
-
