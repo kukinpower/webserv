@@ -73,18 +73,6 @@ class WebServer {
     }
   }
 
-  // todo
-  //  разбор http запросов
-  //  подключить парсер к основной части
-
-
-  // Илья:
-  //  ковырять респонс
-  //  cgi проверка существует ли extension
-
-  //  примеры запросов с cgi
-  //  отличительный признак request -> cgi
-
   void run() {
 //    servers.push_back(Server(8080));
     std::vector<Server>::iterator server = servers.begin();
