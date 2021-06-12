@@ -7,15 +7,9 @@
 #include <sys/socket.h>
 
 int main(int ac, char *av[]) {
-  // todo config with args
-  (void)ac;
-  (void)av;
-
-  // 1. Here we just create some Application class and run it
   try {
     WebServer server;
     server.parseConfig(ac, av);
-  // todo pass arguments to it's run() method
     server.run();
   } catch (std::exception &e) {
     // todo error management

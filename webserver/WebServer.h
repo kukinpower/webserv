@@ -58,13 +58,13 @@ class WebServer {
   void parseConfig(int ac, char *av[]) {
     if (ac == 1) {
       ConfigReader conf;
-      //conf.printData();
+      conf.printData();
       this->servers = conf.getServers();
     } else {
       ConfigReader conf(av[1]);
       try {
         conf.readConfig();
-        //conf.printData();
+        conf.printData();
         this->servers = conf.getServers();
       }
       catch (const std::exception &e) {
@@ -73,8 +73,20 @@ class WebServer {
     }
   }
 
+  // todo
+  //  разбор http запросов
+  //  подключить парсер к основной части
+
+
+  // Илья:
+  //  ковырять респонс
+  //  cgi проверка существует ли extension
+
+  //  примеры запросов с cgi
+  //  отличительный признак request -> cgi
+
   void run() {
-    servers.push_back(Server(8080));
+//    servers.push_back(Server(8080));
     std::vector<Server>::iterator server = servers.begin();
     while (server != servers.end()) {
       try {
