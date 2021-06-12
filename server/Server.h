@@ -19,9 +19,13 @@
 #include <sys/fcntl.h>
 
 #include <vector>
+#include <string>
+#include "Location.h"
 
 class Server {
- private:
+
+private:
+
   // tools
   Logger LOGGER;
   // constants
@@ -30,28 +34,47 @@ class Server {
   static const int BUF_SIZE = 256;
   // vars
   std::vector<Client> clients;
-  int maxBodySize;
-  // std::vector<Location> locations;
   int listenerFd;
   int port;
+  std::string hostName;
+  std::string serverName;
+  std::string errorPage;
+  int maxBodySize;
+  std::vector<Location> locations;
 
- public:
+public:
+  
+  Server(void);
+  Server(int def);
+  Server(int port, std::string hostName, std::string serverName, std::string errorPage,
+        int maxBodySize, std::vector<Location> locations);
   Server(int port, int maxBodySize = 100000000)
   : port(port), maxBodySize(maxBodySize), listenerFd(-1) {
   }
-
-  virtual ~Server() {}
+  virtual ~Server();
 
   Server(const Server &server) {
     operator=(server);
   }
+
   Server &operator=(const Server &server) {
     this->clients = server.clients;
     this->maxBodySize = server.maxBodySize;
     this->listenerFd = server.listenerFd;
     this->port = server.port;
+    this->hostName = server.hostName;
+    this->serverName = server.serverName;
+    this->errorPage = server.errorPage;
+    this->locations = server.locations;
     return *this;
   }
+
+  int getPort() const;
+  std::string getHostName() const;
+  std::string getServerName() const;
+  std::string getErrorPage() const;
+  long int getBodySize() const;
+  std::vector<Location> getLocations() const;
 
  private:
   static void setNonBlock(int fd) {
@@ -188,4 +211,8 @@ class Server {
   int getSocketFd() const {
     return listenerFd;
   }
+
+
+
+
 };
