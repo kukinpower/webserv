@@ -56,7 +56,6 @@ class WebServer {
 
  public:
   void parseConfig(int ac, char *av[]) {
-
       if (ac == 1) {
         ConfigReader conf;
         //conf.printData();
@@ -73,7 +72,6 @@ class WebServer {
           std::cerr << e.what() << std::endl;
         }
       }
-
   }
 
   void run() {
