@@ -10,7 +10,7 @@ class Location {
     this->allowMethod.push_back("GET");
     this->allowMethod.push_back("POST");
     this->allowMethod.push_back("DELETE");
-    this->root = "/var/www";
+    this->root = "./html";
     this->autoindex = true;
     this->index.push_back("index.html");
   }

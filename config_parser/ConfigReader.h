@@ -19,7 +19,7 @@ struct Loc {
   std::string url;
   std::string root;
   std::vector<std::string> allowMethod;
-  bool autoindex;
+  bool autoIndex;
   std::vector<std::string> index;
   std::string uploadPath;
   std::vector<std::string> cgiExt;
@@ -30,13 +30,17 @@ struct Loc {
 class ConfigReader {
  public:
   ConfigReader() {
-    Server srv(1);
+    Server srv;
     this->servers.push_back(srv);
   }
+
   ConfigReader(std::string const &path) : path(path) {
   }
+
   //ConfigReader(ConfigReader const &other){};
+
   //ConfigReader &operator=(ConfigReader const &other){};
+
   ~ConfigReader() {
     this->servers.clear();
   }
@@ -64,7 +68,7 @@ class ConfigReader {
 
     while (str[0] == ' ' || str[0] == '\t')
       str.erase(0, 1);
-    while (str[str.length() - 1] == ' ' || str[str.length() - 1] == '\t' ) // remove tabs and spaces before and after
+    while (str[str.length() - 1] == ' ' || str[str.length() - 1] == '\t') // remove tabs and spaces before and after
       str.erase((str.length() - 1), 1);
 
     size_t doubleSpace = str.find('\t'); // remove tabs and double spaces inside string
@@ -87,9 +91,8 @@ class ConfigReader {
 
   void printData() {
     std::vector<Server>::iterator it = this->servers.begin();
-    int i  = 1;
-    while (it != this->servers.end())
-    {
+    int i = 1;
+    while (it != this->servers.end()) {
       std::cout << "\033[91m";
       int k = 1;
       std::cout << "Server #" << i << " config:" << std::endl;
@@ -100,13 +103,11 @@ class ConfigReader {
       std::cout << "Error page: " << tmp.getErrorPage() << std::endl;
       std::cout << "Size limit: " << tmp.getBodySize() << std::endl << std::endl;
 
-
       std::vector<Location> loc = it->getLocations();
       std::vector<Location>::iterator lit = loc.begin();
       std::vector<std::string> vec;
       std::vector<std::string>::iterator vit;
-      while (lit != loc.end())
-      {
+      while (lit != loc.end()) {
         std::cout << "\033[93m";
         std::cout << "Server #" << i << " location #" << k << ":" << std::endl;
         Location ltmp = *lit;
@@ -115,37 +116,46 @@ class ConfigReader {
         std::cout << "Allowed methods: ";
         vec = ltmp.getMethods();
         vit = vec.begin();
-        while (vit != vec.end())
+        while (vit != vec.end()) {
           std::cout << *vit++ << " ";
-        if (vec.size() == 0)
+        }
+        if (vec.size() == 0) {
           std::cout << "NONE";
+        }
         std::cout << std::endl;
 
         std::cout << "Autoindex: " << ltmp.getAutoindex() << " (1 = on, 0 = off)" << std::endl;
         std::cout << "Index: ";
         vec = ltmp.getIndex();
         vit = vec.begin();
-        while (vit != vec.end())
+        while (vit != vec.end()) {
           std::cout << *vit++ << " ";
-        if (vec.size() == 0)
+        }
+        if (vec.size() == 0) {
           std::cout << "NONE";
+        }
         std::cout << std::endl;
 
         std::cout << "CGI ext: ";
         vec = ltmp.getCgiExt();
         vit = vec.begin();
-        while (vit != vec.end())
+        while (vit != vec.end()) {
           std::cout << *vit++ << " ";
-        if (vec.size() == 0)
+        }
+        if (vec.size() == 0) {
           std::cout << "NONE";
+        }
         std::cout << std::endl;
         std::cout << "CGI path: " << (ltmp.getCgiPath().length() > 0 ? ltmp.getCgiPath() : "NONE") << std::endl;
-        std::cout << "Error page: " << (ltmp.getErrorPage().length() > 0 ? ltmp.getErrorPage() : "NONE") << std::endl << std::endl;
-        k++; lit++;
+        std::cout << "Error page: " << (ltmp.getErrorPage().length() > 0 ? ltmp.getErrorPage() : "NONE") << std::endl
+                  << std::endl;
+        k++;
+        lit++;
       }
       std::cout << "\033[0m";
       std::cout << "===========================\n" << std::endl;
-      i++; it++;
+      i++;
+      it++;
 
     }
   }
@@ -174,61 +184,59 @@ class ConfigReader {
       char ch[n + 1];
       strcpy(ch, spl.back().c_str());
       srv.port = atoi(ch);
-    }
-    else if (spl.front().compare("limit_size") == 0) {
+    } else if (spl.front().compare("limit_size") == 0) {
       int n = spl.back().length();
       char ch[n + 1];
       strcpy(ch, spl.back().c_str());
       srv.maxBodySize = atoi(ch);
-    }
-    else if (spl.front().compare("host") == 0)
+    } else if (spl.front().compare("host") == 0) {
       srv.hostName = spl.back();
-    else if (spl.front().compare("server_name") == 0)
+    } else if (spl.front().compare("server_name") == 0) {
       srv.serverName = spl.back();
-    else if (spl.front().compare("error_page") == 0)
+    } else if (spl.front().compare("error_page") == 0) {
       srv.errorPage = spl.back();
-    else
+    } else {
       throw std::runtime_error("Config file error: wrong server option. Exiting...");
+    }
   }
 
   void addLocationData(Loc &loc, std::string &str) {
     std::vector<std::string> spl = strSplit(str);
     if (spl.front().compare("location") == 0) {
-      if(spl[1] == "{")
+      if (spl[1] == "{") {
         loc.url = "NONE";
-      else
+      } else {
         loc.url = spl[1];
-    }
-    else if (spl.front().compare("root") == 0)
+      }
+    } else if (spl.front().compare("root") == 0) {
       loc.root = spl.back();
-    else if (spl.front().compare("allow_method") == 0) {
+    } else if (spl.front().compare("allow_method") == 0) {
       while (spl.size() != 1) {
-        if (spl.back() != "GET" && spl.back() != "POST" && spl.back() != "DELETE")
+        if (spl.back() != "GET" && spl.back() != "POST" && spl.back() != "DELETE") {
           throw std::runtime_error("Config file error: wrong location option. Exiting...");
+        }
         loc.allowMethod.push_back(spl.back()); // add check for allowed
         spl.pop_back();
       }
-    }
-    else if (spl.front().compare("autoindex") == 0)
-      spl.back() == "on" ? loc.autoindex = true : loc.autoindex = false;
-    else if (spl.front().compare("index") == 0) {
+    } else if (spl.front().compare("autoindex") == 0) {
+      spl.back() == "on" ? loc.autoIndex = true : loc.autoIndex = false;
+    } else if (spl.front().compare("index") == 0) {
       while (spl.size() != 1) {
         loc.index.push_back(spl.back());
         spl.pop_back();
       }
-    }
-    else if (spl.front().compare("cgi_ext") == 0){
+    } else if (spl.front().compare("cgi_ext") == 0) {
       while (spl.size() != 1) {
         loc.cgiExt.push_back(spl.back());
         spl.pop_back();
       }
-    }
-    else if (spl.front().compare("cgi_path") == 0)
+    } else if (spl.front().compare("cgi_path") == 0) {
       loc.cgiPath = spl.back();
-    else if (spl.front().compare("error_page") == 0)
+    } else if (spl.front().compare("error_page") == 0) {
       loc.errorPage = spl.back();
-    else
+    } else {
       throw std::runtime_error("Config file error: wrong location option. Exiting...");
+    }
   }
 
   void addServer(int count, std::vector<std::string> data) {
@@ -240,32 +248,36 @@ class ConfigReader {
     srv.maxBodySize = 10000000;
 
     while (i < count - 1) {
-      if (!loc_bracket && (*it).find("location") == std::string::npos && *it != "}")
+      if (!loc_bracket && (*it).find("location") == std::string::npos && *it != "}") {
         addServerData(srv, *it);
-      else if ((*it).find("location") != std::string::npos) {
+      } else if ((*it).find("location") != std::string::npos) {
         loc_bracket = true;
         Loc loc;
-        loc.autoindex = false;
+        loc.autoIndex = false;
 
         addLocationData(loc, *it);
         it++;
 
         while ((*it).find("}") == std::string::npos) {
           addLocationData(loc, *it);
-          i++; it++;
+          i++;
+          it++;
         }
 
         loc_bracket = false;
-        srv.locations.push_back(Location(loc.url, loc.root, loc.allowMethod, loc.autoindex,
+        srv.locations.push_back(Location(loc.url, loc.root, loc.allowMethod, loc.autoIndex,
                                          loc.index, loc.uploadPath, loc.cgiExt, loc.cgiPath, loc.errorPage));
         loc.allowMethod.clear();
         loc.index.clear();
         loc.cgiExt.clear();
         i++;
       }
-      if ((*it == "}" && i == count - 2) || it == data.end() - 1)
+      // todo control flow
+      if ((*it == "}" && i == count - 2) || it == data.end() - 1) {
         break;
-      i++; it++;
+      }
+      i++;
+      it++;
     }
     this->servers.push_back(Server(srv.port, srv.hostName, srv.serverName,
                                    srv.errorPage, srv.maxBodySize, srv.locations));
@@ -273,40 +285,36 @@ class ConfigReader {
 
   void setConfig(std::vector<std::string> data) {
 
-    while (data.size() > 0)
-    {
+    while (data.size() > 0) {
       bool srv_bracket = false;
       bool loc_bracket = false;
       int count = 0;
       std::vector<std::string>::iterator it = data.begin();
 
-      while (it != data.end())
-      {
+      while (it != data.end()) {
         std::string str = *it;
 
         if (str.find("server {") != std::string::npos) {
           srv_bracket = true;
           count++;
-        }
-        else if (str.find("location") != std::string::npos) {
+        } else if (str.find("location") != std::string::npos) {
           loc_bracket = true;
           count++;
-        }
-        else if (str[0] == '}' && loc_bracket && srv_bracket) {
+        } else if (str[0] == '}' && loc_bracket && srv_bracket) {
           loc_bracket = false;
           count++;
-        }
-        else if (srv_bracket && !loc_bracket && str[0] != '}')
-          count ++;
-        else if (srv_bracket && loc_bracket)
+        } else if (srv_bracket && !loc_bracket && str[0] != '}') {
           count++;
-        else if (str[0] == '}' && !loc_bracket && srv_bracket) {
+        } else if (srv_bracket && loc_bracket) {
+          count++;
+        } else if (str[0] == '}' && !loc_bracket && srv_bracket) {
           srv_bracket = false;
           count++;
         }
 
-        if (!loc_bracket && !srv_bracket)
+        if (!loc_bracket && !srv_bracket) {
           break;
+        }
         it++;
       }
 
@@ -314,13 +322,12 @@ class ConfigReader {
       data.erase(data.begin(), data.begin() + count);
     }
 
-    if (this->servers.size() == 0)
+    if (this->servers.size() == 0) {
       throw std::runtime_error("Config file error: no server data found. Exiting...");
-
+    }
   }
 
  private:
-  //int fd;
   std::string path;
   std::vector<Server> servers;
 };
