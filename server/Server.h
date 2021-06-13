@@ -44,11 +44,11 @@ class Server {
  public:
   // todo?
   Server(int port = 8080,
-         std::string hostName = "localhost",
-         std::string serverName = "champions_server",
-         std::string errorPage = "html/404.html",
-         int maxBodySize = 100000000,
-         std::vector<Location> locations = std::vector<Location>())
+		 const std::string &hostName = "localhost",
+		 const std::string &serverName = "champions_server",
+		 const std::string &errorPage = "html/404.html",
+		 int maxBodySize = 100000000,
+		 const std::vector<Location> &locations = std::vector<Location>())
       :
       port(port),
       hostName(hostName),
@@ -188,7 +188,7 @@ class Server {
         for (std::vector<Request>::iterator request = client->getRequests().begin();
              request != client->getRequests().end();) {
 		  LOGGER.info("We will send now");
-          std::string response = Response(*request).generateResponse();
+          std::string response = Response(*request, locations).generateResponse();
           if (send(client->getFd(), response.c_str(), response.length(), 0) == -1) {
             std::stringstream ss;
             ss << WebServException::SEND_ERROR << " fd: " << client->getFd() << ", response: " << response;
