@@ -1,30 +1,44 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <set>
 
 class Location {
+ private:
+  std::string url;
+  std::string root;
+  std::set<HttpMethod> allowedMethods;
+  bool autoIndex;
+  std::vector<std::string> index;
+  std::string uploadPath;
+  std::vector<std::string> cgiExt;
+  std::string cgiPath;
+  std::string errorPage;
+
  public:
-  Location(void) {}
+  Location(void) {
+  }
+
   Location(int def) {
     this->url = "/";
-    this->allowMethod.push_back("GET");
-    this->allowMethod.push_back("POST");
-    this->allowMethod.push_back("DELETE");
+    this->allowedMethods.insert(GET);
+    this->allowedMethods.insert(POST);
+    this->allowedMethods.insert(DELETE);
     this->root = "./html";
-    this->autoindex = true;
+    this->autoIndex = true;
     this->index.push_back("index.html");
   }
 
-  Location(std::string url, std::string root, std::vector<std::string> allowMethod,
-           bool autoindex, std::vector<std::string> index, std::string uploadPath,
-           std::vector<std::string> cgiExt, std::string cgiPath, std::string errorPage)
-      : url(url), root(root), allowMethod(allowMethod),
-        autoindex(autoindex), index(index), uploadPath(uploadPath),
-        cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
+  Location(const std::string& url, const std::string& root, std::vector<HttpMethod> allowMethod,
+           bool autoIndex, const std::vector<std::string>& index, const std::string& uploadPath,
+           const std::vector<std::string>& cgiExt, const std::string& cgiPath, const std::string& errorPage)
+      : url(url), root(root), allowedMethods(allowMethod.begin(), allowMethod.end()),
+		autoIndex(autoIndex), index(index), uploadPath(uploadPath),
+		cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
   }
 
   ~Location() {
-    this->allowMethod.clear();
+    this->allowedMethods.clear();
     this->index.clear();
     this->cgiExt.clear();
   }
@@ -33,8 +47,13 @@ class Location {
   //Location(Location const &other){};
   //Location &operator=(Location const &other){};
 
-  bool matches(const std::string &path) {
-	return true;
+  bool isMethodAllowed(HttpMethod method) const {
+	return allowedMethods.find(method) != allowedMethods.end();
+  }
+
+  bool matches(const std::string &path) const {
+	return (path.length() == 1 && url.length() == 1 && path == url) ||
+			(path.substr(1).rfind(url.substr(1), 0) == 0);
   }
 
   std::string getUrl() const {
@@ -45,12 +64,12 @@ class Location {
     return this->root;
   }
 
-  std::vector<std::string> getMethods() const {
-    return this->allowMethod;
+  std::set<HttpMethod> getMethods() const {
+    return this->allowedMethods;
   }
 
   bool getAutoindex() const {
-    return this->autoindex;
+    return this->autoIndex;
   }
 
   std::vector<std::string> getIndex() const {
@@ -72,15 +91,4 @@ class Location {
   std::string getErrorPage() const {
     return this->errorPage;
   }
-
- private:
-  std::string url;
-  std::string root;
-  std::vector<std::string> allowMethod;
-  bool autoindex;
-  std::vector<std::string> index;
-  std::string uploadPath;
-  std::vector<std::string> cgiExt;
-  std::string cgiPath;
-  std::string errorPage;
 };

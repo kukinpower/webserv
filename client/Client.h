@@ -94,7 +94,7 @@ class Client {
 		const std::string &headerFull = requestBody.substr(0, pos);
 
 		const std::string &mainLine = getMainLine(headerFull);
-		Method method = Request::extractMethod(mainLine);
+		HttpMethod method = Request::extractMethod(mainLine);
 		const std::string &path = Request::extractPath(mainLine);
 
 		Request::Headers requestHeaders = Request::extractHttpHeaders(headerFull, pos);

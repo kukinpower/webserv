@@ -18,6 +18,7 @@ struct Srv {
 struct Loc {
   std::string url;
   std::string root;
+//  std::vector<HttpMethod> allowMethod;
   std::vector<std::string> allowMethod;
   bool autoIndex;
   std::vector<std::string> index;
@@ -201,6 +202,18 @@ class ConfigReader {
     }
   }
 
+  //todo
+//  HttpMethod extractMethodFromStr(const std::string &method) {
+//	if (method == "GET") {
+//	  return GET;
+//	} else if (method == "POST") {
+//	  return POST;
+//	} else if (method == "DELETE") {
+//	  return DELETE;
+//	}
+//	throw std::runtime_error("Config file error: wrong server allowed method: " + method);
+//  }
+
   void addLocationData(Loc &loc, std::string &str) {
     std::vector<std::string> spl = strSplit(str);
     if (spl.front().compare("location") == 0) {
@@ -216,10 +229,11 @@ class ConfigReader {
         if (spl.back() != "GET" && spl.back() != "POST" && spl.back() != "DELETE") {
           throw std::runtime_error("Config file error: wrong location option. Exiting...");
         }
+//        loc.allowMethod.push_back(extractMethodFromStr(spl.back())); // add check for allowed
         loc.allowMethod.push_back(spl.back()); // add check for allowed
         spl.pop_back();
       }
-    } else if (spl.front().compare("autoindex") == 0) {
+    } else if (spl.front().compare("autoIndex") == 0) {
       spl.back() == "on" ? loc.autoIndex = true : loc.autoIndex = false;
     } else if (spl.front().compare("index") == 0) {
       while (spl.size() != 1) {
@@ -273,7 +287,7 @@ class ConfigReader {
         loc.cgiExt.clear();
         i++;
       }
-      // todo control flow
+
       if ((*it == "}" && i == count - 2) || it == data.end() - 1) {
         break;
       }

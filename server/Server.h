@@ -170,7 +170,6 @@ class Server {
 	int selectRes;
     if ((selectRes = select(maxFd + 1, &readFds, &writeFds, NULL, &time)) == -1) {
       LOGGER.error(WebServException::SELECT_ERROR);
-//      std::cin >> maxFd;
       throw SelectException();
     }
     if (selectRes == 0) {

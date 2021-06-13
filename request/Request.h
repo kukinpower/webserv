@@ -1,5 +1,5 @@
 #pragma once
-#include "Method.h"
+#include "HttpMethod.h"
 #include "RequestStatus.h"
 
 #include "MaxRequestSizeExceededException.h"
@@ -17,7 +17,7 @@ class Request {
   static const int HEADER_DELIMETER_LENGTH = 2;
   static const char *HEADER_DELIMETER;
   // vars
-  Method method;
+  HttpMethod method;
   std::string path;
   Headers headers;
   std::string body;
@@ -35,10 +35,10 @@ class Request {
   }
 
  public:
-  Request(Method method,
-          const std::string &path,
-          const std::map<std::string, std::string> &headers,
-          const std::string &body = "",
+  Request(HttpMethod method,
+		  const std::string &path,
+		  const std::map<std::string, std::string> &headers,
+		  const std::string &body = "",
 		  RequestStatus status = READY)
       : method(method), path(path), headers(headers), body(body), status(status) {}
 
@@ -91,7 +91,7 @@ class Request {
     return (requestHeaders.count("Connection") != 0 && requestHeaders.find("Connection")->second == "Close");
   }
 
-  static Method extractMethod(const std::string &line) {
+  static HttpMethod extractMethod(const std::string &line) {
     if (line.find("POST") != std::string::npos) {
       return POST;
     }
@@ -107,7 +107,7 @@ class Request {
     return line.substr(start, end - start);
   }
 
-  Method getMethod() const {
+  HttpMethod getMethod() const {
     return method;
   }
   const std::string &getPath() const {

@@ -29,7 +29,18 @@ class Response {
 	// status codes
 	// inject server?
 
-	std::vector<Location>::const_iterator location = locations.begin();
+	for (std::vector<Location>::const_iterator location = locations.begin();
+		  location != locations.end();
+		  ++location) {
+
+	  // todo
+	  //  1. matches
+	  //  2. method allowed?
+	  //  3. default
+	  if (location->matches(request.getPath()) && location->isMethodAllowed(request.getMethod())) {
+
+	  }
+	}
 //	if (location.matches(request.getPath())) {
 //
 //	}
