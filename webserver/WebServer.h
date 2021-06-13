@@ -28,7 +28,7 @@ class WebServer {
   static const int PORT_DEFAULT = 8080;
 
  private:
-  Logger LOGGER;
+  static Logger LOGGER;
   std::vector<Server> servers;
 
  public:
@@ -74,7 +74,6 @@ class WebServer {
   }
 
   void run() {
-//    servers.push_back(Server(8080));
     std::vector<Server>::iterator server = servers.begin();
     while (server != servers.end()) {
       try {
@@ -89,3 +88,6 @@ class WebServer {
     routine();
   }
 };
+
+// todo ifndef
+Logger WebServer::LOGGER(Logger::INFO);

@@ -35,6 +35,7 @@ class WebServException : public std::exception {
   static const char *ACCEPT_ERROR;
   static const char *FCNTL_ERROR;
   static const char *READ_ERROR;
+  static const char *SEND_ERROR;
   static const char *NON_BLOCK_ERROR;
 
   static const char *MAX_REQ_SIZE_EXCEEDED;
@@ -49,6 +50,7 @@ const char *WebServException::SELECT_ERROR = "Select error";
 const char *WebServException::ACCEPT_ERROR = "Accept error";
 const char *WebServException::FCNTL_ERROR = "Fcntl error";
 const char *WebServException::READ_ERROR = "Read error";
+const char *WebServException::SEND_ERROR = "Send error";
 const char *WebServException::NON_BLOCK_ERROR = "Non block error";
 
 const char *WebServException::MAX_REQ_SIZE_EXCEEDED = "Maximum request size body exceeded";

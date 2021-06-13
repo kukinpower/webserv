@@ -1,6 +1,7 @@
 #pragma once
 #include "Logger.h"
 #include "Client.h"
+#include "Location.h"
 
 #include "SelectException.h"
 #include "BadListenerFdException.h"
@@ -9,6 +10,7 @@
 #include "ListenException.h"
 #include "AcceptException.h"
 #include "ReadException.h"
+#include "SendException.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -20,7 +22,6 @@
 
 #include <vector>
 #include <string>
-#include "Location.h"
 
 class Server {
  private:
@@ -137,18 +138,18 @@ class Server {
     return std::max(maxFd, newClientFd);
   }
 
-  int setFdSets(fd_set *readfds, fd_set *writefds) {
-    FD_ZERO(readfds);
-    FD_ZERO(writefds);
-    FD_SET(listenerFd, readfds);
+  int setFdSets(fd_set *readFds, fd_set *writeFds) {
+    FD_ZERO(readFds);
+    FD_ZERO(writeFds);
+    FD_SET(listenerFd, readFds);
 
     int maxFd = listenerFd;
     for (std::vector<Client>::iterator it = clients.begin();
          it != clients.end(); ++it) {
       int fd = it->getFd();
-      FD_SET(fd, readfds);
-      if (it->getStatus() == WRITE) {
-        FD_SET(fd, writefds);
+      FD_SET(fd, readFds);
+      if (it->isReadyToWrite()) {
+        FD_SET(fd, writeFds);
       }
       maxFd = std::max(maxFd, fd);
     }
@@ -156,21 +157,26 @@ class Server {
     return maxFd;
   }
 
-  // todo maybe fd_set writefds & timeout
+  // todo maybe fd_set writeFds & timeout
   void processSelect() {
-    fd_set readfds;
-    fd_set writefds;
-    int maxFd = setFdSets(&readfds, &writefds);
+    fd_set readFds;
+    fd_set writeFds;
+    int maxFd = setFdSets(&readFds, &writeFds);
 
-    int selectedFdsCount;
-    if ((selectedFdsCount = select(maxFd + 1, &readfds, &writefds, NULL, NULL)) < 1) {
+    if ((select(maxFd + 1, &readFds, &writeFds, NULL, NULL)) < 1) {
       LOGGER.error(WebServException::SELECT_ERROR);
+      LOGGER.error("TUT ------------------------------------------------");
+      std::cin >> maxFd;
       throw SelectException();
     }
 
-    if (FD_ISSET(listenerFd, &readfds)) { // new connection
+	// new connection
+    if (FD_ISSET(listenerFd, &readFds)) {
       try {
         maxFd = acceptConnection(maxFd);
+		std::stringstream ss;
+		ss << "Client with fd " << maxFd << " connected ";
+		LOGGER.info(ss.str());
       } catch (const RuntimeWebServException &e) {
         LOGGER.error(e.what());
       }
@@ -178,22 +184,24 @@ class Server {
 
     for (std::vector<Client>::iterator client = clients.begin();
          client != clients.end(); ++client) {
-      if (FD_ISSET(client->getFd(), &writefds)) {
+      if (FD_ISSET(client->getFd(), &writeFds)) {
         for (std::vector<Request>::iterator request = client->getRequests().begin();
-             request != client->getRequests().end(); ++request) {
-          Response response(*request);
-          if (send(client->getFd(), response.generateResponse().c_str(), response.generateResponse().length(), 0)
-              == -1) {
-            LOGGER.error("Bad send");
-            //todo throw custom exception
+             request != client->getRequests().end();) {
+		  LOGGER.info("We will send now");
+          std::string response = Response(*request).generateResponse();
+          if (send(client->getFd(), response.c_str(), response.length(), 0) == -1) {
+            std::stringstream ss;
+            ss << WebServException::SEND_ERROR << " fd: " << client->getFd() << ", response: " << response;
+			LOGGER.error(ss.str());
+			throw SendException();
           }
+          request = client->getRequests().erase(request);
           client->setStatus(READ); // todo maybe creates some bugs, find out how to check if needed closing
         }
       }
-      if (FD_ISSET(client->getFd(), &readfds)) {
+      if (FD_ISSET(client->getFd(), &readFds)) {
         try {
           client->processReading();
-          // callCgi()
         } catch (const RuntimeWebServException &e) {
           LOGGER.error(e.what());
         }

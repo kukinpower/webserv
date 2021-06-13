@@ -1,5 +1,6 @@
 #pragma once
 #include "Method.h"
+#include "RequestStatus.h"
 
 #include "MaxRequestSizeExceededException.h"
 
@@ -20,6 +21,7 @@ class Request {
   std::string path;
   Headers headers;
   std::string body;
+  RequestStatus status;
   static const MimeTypes MIME;
 
   static Headers initMimeTypes() {
@@ -36,8 +38,9 @@ class Request {
   Request(Method method,
           const std::string &path,
           const std::map<std::string, std::string> &headers,
-          const std::string &body = "")
-      : method(method), path(path), headers(headers), body(body) {}
+          const std::string &body = "",
+		  RequestStatus status = READY)
+      : method(method), path(path), headers(headers), body(body), status(status) {}
 
   virtual ~Request() {}
   Request(const Request &request) {
@@ -49,12 +52,18 @@ class Request {
     this->path = request.path;
     this->headers = request.headers;
     this->body = request.body;
+    this->status = request.status;
     return *this;
   }
 
  public:
-  static Headers extractHttpHeaders(const std::string &headersToken) {
-    std::stringstream ss(headersToken);
+  static size_t getHeadersStartPosition(const std::string &headerFull) {
+	return headerFull.find("\r\n") + 2;
+  }
+  
+  static Headers extractHttpHeaders(const std::string &headersToken, size_t inputPos) {
+	size_t headersStart = getHeadersStartPosition(headersToken);
+    std::stringstream ss(headersToken.substr(headersStart, inputPos - headersStart));
     Headers requestHeaders;
     std::string line;
 
@@ -65,7 +74,7 @@ class Request {
       }
       std::string key = line.substr(0, pos);
       line.erase(0, pos + HEADER_DELIMETER_LENGTH);
-      requestHeaders.insert(std::make_pair(key, line.substr(0, line.find("\r"))));
+      requestHeaders.insert(std::make_pair(key, line.substr(0, line.find('\r'))));
     }
     return requestHeaders;
   }
@@ -78,23 +87,23 @@ class Request {
     return requestHeaders.count("Content-Length") != 0;
   }
 
-  static bool hasConnectionClose(const Headers &requestHeaders) {
+  static bool isConnectionClose(const Headers &requestHeaders) {
     return (requestHeaders.count("Connection") != 0 && requestHeaders.find("Connection")->second == "Close");
   }
 
   static Method extractMethod(const std::string &line) {
-    if (line.find("POST") != line.npos) {
+    if (line.find("POST") != std::string::npos) {
       return POST;
     }
-    if (line.find("DELETE") != line.npos) {
+    if (line.find("DELETE") != std::string::npos) {
       return DELETE;
     }
     return GET;
   }
 
   static std::string extractPath(const std::string &line) {
-    size_t start = line.find(" ") + 1;
-    size_t end = line.rfind(" ");
+    size_t start = line.find(' ') + 1;
+    size_t end = line.rfind(' ');
     return line.substr(start, end - start);
   }
 
@@ -110,10 +119,21 @@ class Request {
   const std::string &getBody() const {
     return body;
   }
-  void setBody(const std::string &body) {
-    this->body = body;
+  void setBody(const std::string &bodyToSet) {
+    this->body = bodyToSet;
   }
 
+  size_t getLength() {
+	return getLengthFromHeaders(headers);
+  }
+
+  RequestStatus getStatus() const {
+	return status;
+  }
+
+  void setStatus(RequestStatus requestStatus) {
+	this->status = requestStatus;
+  }
 };
 
 const char *Request::HEADER_DELIMETER = ": ";
