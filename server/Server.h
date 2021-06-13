@@ -10,6 +10,7 @@
 #include "ListenException.h"
 #include "AcceptException.h"
 #include "ReadException.h"
+#include "SendException.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -162,13 +163,13 @@ class Server {
     fd_set writefds;
     int maxFd = setFdSets(&readfds, &writefds);
 
-    int selectedFdsCount;
-    if ((selectedFdsCount = select(maxFd + 1, &readfds, &writefds, NULL, NULL)) < 1) {
+    if ((select(maxFd + 1, &readfds, &writefds, NULL, NULL)) < 1) {
       LOGGER.error(WebServException::SELECT_ERROR);
       throw SelectException();
     }
 
-    if (FD_ISSET(listenerFd, &readfds)) { // new connection
+	// new connection
+    if (FD_ISSET(listenerFd, &readfds)) {
       try {
         maxFd = acceptConnection(maxFd);
       } catch (const RuntimeWebServException &e) {
@@ -182,11 +183,12 @@ class Server {
         for (std::vector<Request>::iterator request = client->getRequests().begin();
              request != client->getRequests().end();
              ++request) {
-          Response response(*request);
-          if (send(client->getFd(), response.generateResponse().c_str(), response.generateResponse().length(), 0)
-              == -1) {
-            LOGGER.error("Bad send");
-            //todo throw custom exception
+          std::string response = Response(*request).generateResponse();
+          if (send(client->getFd(), response.c_str(), response.length(), 0) == -1) {
+            std::stringstream ss;
+            ss << WebServException::SEND_ERROR << " fd: " << client->getFd() << ", response: " << response;
+			LOGGER.error(ss.str());
+			throw SendException();
           }
           client->setStatus(READ); // todo maybe creates some bugs, find out how to check if needed closing
         }
