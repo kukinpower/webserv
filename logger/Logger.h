@@ -4,7 +4,9 @@
 class Logger {
  public:
   static const int DEBUG = 1;
-  static const int INFO;
+  static const int INFO = 2;
+  static const char *SPRING_GREEN_SET;
+  static const char *RESET;
 
  private:
   int level;
@@ -16,7 +18,7 @@ class Logger {
   // todo add more data: time, thread
   void info(std::string const &message) const {
     if (level <= 2) {
-      std::cerr << message << std::endl;
+      std::cerr << SPRING_GREEN_SET << message << RESET << std::endl;
     }
   }
 
@@ -31,4 +33,5 @@ class Logger {
   }
 };
 
-const int Logger::INFO = 2;
+const char *Logger::SPRING_GREEN_SET = "\033[38;2;0;255;127m";
+const char *Logger::RESET = "\033[0m";

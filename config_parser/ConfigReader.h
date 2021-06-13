@@ -49,8 +49,9 @@ class ConfigReader {
 
     std::ifstream fileStream(this->path);
 
-    if (fileStream.fail())
+    if (fileStream.fail()) {
       throw std::runtime_error("Error reading config file. Exiting...");
+    }
 
     std::string str;
     std::vector<std::string> data;

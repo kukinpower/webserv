@@ -26,7 +26,7 @@
 class Server {
  private:
   // tools
-  Logger LOGGER;
+  static Logger LOGGER;
   // constants
   static const int TCP = 0;
   static const int BACKLOG = 5;
@@ -44,11 +44,11 @@ class Server {
  public:
   // todo?
   Server(int port = 8080,
-         std::string hostName = "localhost",
-         std::string serverName = "champions_server",
-         std::string errorPage = "html/404.html",
-         int maxBodySize = 100000000,
-         std::vector<Location> locations = std::vector<Location>())
+		 const std::string &hostName = "localhost",
+		 const std::string &serverName = "champions_server",
+		 const std::string &errorPage = "html/404.html",
+		 int maxBodySize = 100000000,
+		 const std::vector<Location> &locations = std::vector<Location>())
       :
       port(port),
       hostName(hostName),
@@ -163,11 +163,18 @@ class Server {
     fd_set writeFds;
     int maxFd = setFdSets(&readFds, &writeFds);
 
-    if ((select(maxFd + 1, &readFds, &writeFds, NULL, NULL)) < 1) {
+	struct timeval time;
+	time.tv_sec = 0;
+	time.tv_usec = 10000;
+
+	int selectRes;
+    if ((selectRes = select(maxFd + 1, &readFds, &writeFds, NULL, &time)) == -1) {
       LOGGER.error(WebServException::SELECT_ERROR);
-      LOGGER.error("TUT ------------------------------------------------");
-      std::cin >> maxFd;
+//      std::cin >> maxFd;
       throw SelectException();
+    }
+    if (selectRes == 0) {
+	  return;
     }
 
 	// new connection
@@ -188,7 +195,7 @@ class Server {
         for (std::vector<Request>::iterator request = client->getRequests().begin();
              request != client->getRequests().end();) {
 		  LOGGER.info("We will send now");
-          std::string response = Response(*request).generateResponse();
+          std::string response = Response(*request, locations).generateResponse();
           if (send(client->getFd(), response.c_str(), response.length(), 0) == -1) {
             std::stringstream ss;
             ss << WebServException::SEND_ERROR << " fd: " << client->getFd() << ", response: " << response;
@@ -196,7 +203,6 @@ class Server {
 			throw SendException();
           }
           request = client->getRequests().erase(request);
-          client->setStatus(READ); // todo maybe creates some bugs, find out how to check if needed closing
         }
       }
       if (FD_ISSET(client->getFd(), &readFds)) {
@@ -251,3 +257,6 @@ class Server {
     return this->locations;
   }
 };
+
+// todo ifndef
+Logger Server::LOGGER(Logger::DEBUG);

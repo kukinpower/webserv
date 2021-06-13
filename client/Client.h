@@ -18,7 +18,7 @@
 #include <sys/select.h>
 #include <sys/fcntl.h>
 #include <unistd.h>
-#include <stdlib.h>     /* atoi */
+#include <cstdlib>     /* atoi */
 
 #include <vector>
 #include <iostream>
@@ -31,13 +31,12 @@ class Client {
  private:
   int fd;
   std::string requestBody;
-  Logger LOGGER;
+  static Logger LOGGER;
   std::vector<Request> requests;
-  ClientStatus status;
   size_t cursorLength;
 
  public:
-  Client(int fd) : fd(fd), status(READ) {}
+  Client(int fd) : fd(fd) {}
   virtual ~Client() {}
 
   Client(const Client &request) {
@@ -47,7 +46,6 @@ class Client {
     this->fd = request.fd;
     this->requestBody = request.requestBody;
     this->requests = request.requests;
-    this->status = request.status;
     return *this;
   }
 
@@ -93,7 +91,6 @@ class Client {
     size_t pos = 0;
     std::string headersToken;
     while ((pos = requestBody.find(REQUEST_END)) != std::string::npos) {
-      if (status == READ) {
 		const std::string &headerFull = requestBody.substr(0, pos);
 
 		const std::string &mainLine = getMainLine(headerFull);
@@ -108,7 +105,6 @@ class Client {
 		if (Request::isConnectionClose(requestHeaders)) {
 		  body = requestBody.substr(pos);
 		  requests.push_back(Request(method, path, requestHeaders, body));
-		  status = WRITE;
 		  return;
 		}
 
@@ -125,7 +121,6 @@ class Client {
 		  }
 		}
 		requests.push_back(Request(method, path, requestHeaders, body, requestStatus));
-	  }
     }
   }
 
@@ -140,13 +135,11 @@ class Client {
       // todo if we are here, we hadn't read anything
       //  and no responses are pending
       close(fd);
-      status = CLOSED;
       return;
     }
     buf[bytesRead] = 0;
     appendToRequest(buf);
-//    LOGGER.debug(std::string(buf));
-    LOGGER.info(std::string(buf));
+    LOGGER.debug(std::string(buf));
   }
 
   bool hasRequestWaitingBody() const {
@@ -171,18 +164,7 @@ class Client {
   std::vector<Request> &getRequests() {
     return requests;
   }
-
-  void sendResponse(const Response &response) {
-
-  }
-
-  ClientStatus getStatus() const {
-    return status;
-  }
-  void setStatus(ClientStatus status) {
-    this->status = status;
-  }
-
 };
 
+Logger Client::LOGGER(Logger::DEBUG);
 const char *Client::REQUEST_END = "\r\n\r\n";

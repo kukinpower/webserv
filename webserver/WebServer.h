@@ -38,56 +38,51 @@ class WebServer {
 
  private:
   void routine() {
-    while (true) {
-      std::vector<Server>::iterator server = servers.begin();
-      while (server != servers.end()) {
-        try {
-          server->processSelect();
-          ++server;
-        } catch (const RuntimeWebServException &e) {
-          LOGGER.error(e.what());
-          ++server;
-        } catch (const FatalWebServException &e) {
-          server = servers.erase(server);
-        }
-      }
-    }
+	while (true) {
+	  std::vector<Server>::iterator server = servers.begin();
+	  while (server != servers.end()) {
+		try {
+		  server->processSelect();
+		  ++server;
+		} catch (const RuntimeWebServException &e) {
+		  LOGGER.error(e.what());
+		  ++server;
+		} catch (const FatalWebServException &e) {
+		  server = servers.erase(server);
+		}
+	  }
+	}
   }
 
  public:
   void parseConfig(int ac, char *av[]) {
-    if (ac == 1) {
-      ConfigReader conf;
-      conf.printData();
-      this->servers = conf.getServers();
-    } else {
-      ConfigReader conf(av[1]);
-      try {
-        conf.readConfig();
-        conf.printData();
-        this->servers = conf.getServers();
-      }
-      catch (const std::exception &e) {
-        std::cerr << e.what() << std::endl;
-      }
-    }
+	if (ac == 1) {
+	  ConfigReader conf;
+	  conf.printData();
+	  this->servers = conf.getServers();
+	} else {
+	  ConfigReader conf(av[1]);
+	  conf.readConfig();
+	  conf.printData();
+	  this->servers = conf.getServers();
+	}
   }
 
   void run() {
-    std::vector<Server>::iterator server = servers.begin();
-    while (server != servers.end()) {
-      try {
-        server->run();
-        ++server;
-      } catch (const FatalWebServException &e) {
-        LOGGER.error(e.what());
-        server = servers.erase(server);
-      }
-    }
+	std::vector<Server>::iterator server = servers.begin();
+	while (server != servers.end()) {
+	  try {
+		server->run();
+		++server;
+	  } catch (const FatalWebServException &e) {
+		LOGGER.error(e.what());
+		server = servers.erase(server);
+	  }
+	}
 
-    routine();
+	routine();
   }
 };
 
 // todo ifndef
-Logger WebServer::LOGGER(Logger::INFO);
+Logger WebServer::LOGGER(Logger::DEBUG);

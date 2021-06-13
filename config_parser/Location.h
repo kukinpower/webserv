@@ -33,6 +33,10 @@ class Location {
   //Location(Location const &other){};
   //Location &operator=(Location const &other){};
 
+  bool matches(const std::string &path) {
+	return true;
+  }
+
   std::string getUrl() const {
     return this->url;
   }
