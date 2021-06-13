@@ -26,7 +26,7 @@
 class Server {
  private:
   // tools
-  Logger LOGGER;
+  static Logger LOGGER;
   // constants
   static const int TCP = 0;
   static const int BACKLOG = 5;
@@ -163,11 +163,18 @@ class Server {
     fd_set writeFds;
     int maxFd = setFdSets(&readFds, &writeFds);
 
-    if ((select(maxFd + 1, &readFds, &writeFds, NULL, NULL)) < 1) {
+	struct timeval time;
+	time.tv_sec = 0;
+	time.tv_usec = 10000;
+
+	int selectRes;
+    if ((selectRes = select(maxFd + 1, &readFds, &writeFds, NULL, &time)) == -1) {
       LOGGER.error(WebServException::SELECT_ERROR);
-      LOGGER.error("TUT ------------------------------------------------");
-      std::cin >> maxFd;
+//      std::cin >> maxFd;
       throw SelectException();
+    }
+    if (selectRes == 0) {
+	  return;
     }
 
 	// new connection
@@ -196,7 +203,6 @@ class Server {
 			throw SendException();
           }
           request = client->getRequests().erase(request);
-          client->setStatus(READ); // todo maybe creates some bugs, find out how to check if needed closing
         }
       }
       if (FD_ISSET(client->getFd(), &readFds)) {
@@ -251,3 +257,6 @@ class Server {
     return this->locations;
   }
 };
+
+// todo ifndef
+Logger Server::LOGGER(Logger::DEBUG);

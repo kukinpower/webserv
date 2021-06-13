@@ -3,6 +3,7 @@
 #include "Location.h"
 
 #include <map>
+#include <FatalWebServException.h>
 
 class Response {
  private:
@@ -23,6 +24,18 @@ class Response {
   }
 
   std::string generateResponse() {
+	//todo generate with headers, not hardcode
+	// validation
+	// status codes
+	// inject server?
+
+	std::vector<Location>::const_iterator location = locations.begin();
+//	if (location.matches(request.getPath())) {
+//
+//	}
+
+
+//
 //	if (location.getCgiPath() != "" && location.getCgiExt().size()) {
 //	  CgiHandler cgi(request, location);
 //	  try {
@@ -34,18 +47,9 @@ class Response {
 //	} else {
 //	  //depending on method, get file, post file, delete file
 //	}
-//	std::stringstream ss;
-//	ss << "HTTP/1.1 200 OK\r\nDate: Mon, 27 Jul 2009 12:28:53 GMT\r\nServer: Champions\r\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\r\nContent-Length: ";
-//	ss << request.getBody().length() << "\r\n";
-//	ss << "Content-Type: text/html\r\n\r\n" << body;
-//	return ss.str();
-	//todo generate with headers, not hardcode
-	// validation
-	// status codes
-	// inject server?
 	std::stringstream ss;
 	ss
-		<< "HTTP/1.1 200 OK\r\nDate: Mon, 27 Jul 2009 12:28:53 GMT\r\nServer: Champions\r\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\r\nContent-Length: ";
+		<< "HTTP/1.1 400 OK\r\nDate: Mon, 27 Jul 2009 12:28:53 GMT\r\nServer: Champions\r\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\r\nContent-Length: ";
 	ss << request.getBody().length() << "\r\n";
 	ss << "Content-Type: text/html\r\n\r\n" << request.getBody().c_str();
 	return ss.str();
