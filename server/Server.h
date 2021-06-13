@@ -186,8 +186,7 @@ class Server {
          client != clients.end(); ++client) {
       if (FD_ISSET(client->getFd(), &writeFds)) {
         for (std::vector<Request>::iterator request = client->getRequests().begin();
-             request != client->getRequests().end();
-             ++request) {
+             request != client->getRequests().end();) {
 		  LOGGER.info("We will send now");
           std::string response = Response(*request).generateResponse();
           if (send(client->getFd(), response.c_str(), response.length(), 0) == -1) {
@@ -196,6 +195,7 @@ class Server {
 			LOGGER.error(ss.str());
 			throw SendException();
           }
+          request = client->getRequests().erase(request);
           client->setStatus(READ); // todo maybe creates some bugs, find out how to check if needed closing
         }
       }
