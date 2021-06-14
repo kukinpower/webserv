@@ -144,16 +144,25 @@ class Response {
     }
 
     if (!isDirectory(path.c_str())) {
-      std::istreambuf_iterator<char> eos;
-      responseBody = std::string(std::istreambuf_iterator<char>(fileStream), eos);
+      responseBody = getDocumentContent(fileStream);
     } else {
       if (requestLocation->isAutoIndex()) {
         responseBody = generateAutoIndex(path);
       } else {
-        // index.html
+        std::ifstream indexFileStream(path + "index.html");
+        if (!indexFileStream.fail()) {
+          responseBody = getDocumentContent(indexFileStream);
+        } else {
+          responseBody = "";
+        }
       }
     }
     status = OK;
+  }
+
+  static std::string getDocumentContent(std::ifstream &fileStream) {
+    std::istreambuf_iterator<char> eos;
+    return std::string(std::istreambuf_iterator<char>(fileStream), eos);
   }
 
   void doPost() {
