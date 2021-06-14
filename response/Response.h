@@ -95,6 +95,7 @@ class Response {
     }
 
     //todo server name
+    headers.insert(std::make_pair("Server", serverStruct.getServerName()));
     headers.insert(std::make_pair("Content-Type", getContentType(request.getPath())));
 
     responseHeaders = convertHeadersToStringVector(headers);
@@ -126,6 +127,7 @@ class Response {
       closedir(dir);
 
       ss << "</body></html>";
+
       return ss.str();
     }
 
