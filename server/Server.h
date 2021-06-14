@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "Client.h"
 #include "Location.h"
+#include "StringBuilder.h"
 
 #include "SelectException.h"
 #include "BadListenerFdException.h"
@@ -86,9 +87,12 @@ class Server {
  private:
   static void setNonBlock(int fd) {
     if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0) {
-      std::stringstream ss;
-      ss << WebServException::FCNTL_ERROR << " on fd: " << fd;
-      throw NonBlockException(ss.str());
+//      throw NonBlockException(Logger::toString(WebServException::FCNTL_ERROR) + " on fd: " + Logger::toString(fd));
+      throw NonBlockException(StringBuilder()
+                                      .append(WebServException::FCNTL_ERROR)
+                                      .append(" on fd: ")
+                                      .append(fd)
+                                      .toString());
     }
   }
 
@@ -180,9 +184,7 @@ class Server {
     if (FD_ISSET(listenerFd, &readFds)) {
       try {
         maxFd = acceptConnection(maxFd);
-		std::stringstream ss;
-		ss << "Client with fd " << maxFd << " connected ";
-		LOGGER.info(ss.str());
+		LOGGER.info("Client connected, fd: " + Logger::toString(maxFd));
       } catch (const RuntimeWebServException &e) {
         LOGGER.error(e.what());
       }
@@ -193,12 +195,17 @@ class Server {
       if (FD_ISSET(client->getFd(), &writeFds)) {
         for (std::vector<Request>::iterator request = client->getRequests().begin();
              request != client->getRequests().end();) {
-		  LOGGER.info("We will send now");
+          LOGGER.info("Start sending to client: " + Logger::toString(maxFd));
+
           std::string response = Response(*request, locations).generateResponse();
           if (send(client->getFd(), response.c_str(), response.length(), 0) == -1) {
-            std::stringstream ss;
-            ss << WebServException::SEND_ERROR << " fd: " << client->getFd() << ", response: " << response;
-			LOGGER.error(ss.str());
+			LOGGER.error(StringBuilder()
+			                          .append(WebServException::SEND_ERROR)
+			                          .append(" fd: ")
+			                          .append(client->getFd())
+			                          .append(", response: ")
+			                          .append(response)
+			                          .toString());
 			throw SendException();
           }
           request = client->getRequests().erase(request);

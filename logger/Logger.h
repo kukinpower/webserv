@@ -1,5 +1,7 @@
 #pragma once
 #include <iostream>
+#include <sstream>
+#include <string>
 
 class Logger {
  public:
@@ -30,6 +32,13 @@ class Logger {
 
   void error(std::string const &message) const {
     std::cerr << message << std::endl;
+  }
+
+  template<class T>
+  static std::string toString(const T &val) {
+    std::stringstream ss;
+    ss << val;
+    return ss.str();
   }
 };
 

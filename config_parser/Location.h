@@ -1,7 +1,10 @@
 #pragma once
+#include "Logger.h"
+
 #include <string>
 #include <vector>
 #include <set>
+#include <sstream>
 
 class Location {
  private:
@@ -88,9 +91,7 @@ class Location {
 	} else if (method == DELETE) {
 	  return "DELETE";
 	}
-	std::stringstream ss;
-	ss << "Config file error: wrong server allowed method: " << method;
-	throw std::runtime_error(ss.str());
+	throw std::runtime_error("Config file error: wrong server allowed method: " + Logger::toString(method));
   }
 
   std::set<HttpMethod> vectorToSet(const std::vector<std::string> &v) const {
