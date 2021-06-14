@@ -29,10 +29,10 @@ class Location {
     this->index.push_back("index.html");
   }
 
-  Location(const std::string& url, const std::string& root, std::vector<HttpMethod> allowMethod,
+  Location(const std::string& url, const std::string& root, const std::vector<std::string> &allowedMethodsVector,
            bool autoIndex, const std::vector<std::string>& index, const std::string& uploadPath,
            const std::vector<std::string>& cgiExt, const std::string& cgiPath, const std::string& errorPage)
-      : url(url), root(root), allowedMethods(allowMethod.begin(), allowMethod.end()),
+      : url(url), root(root), allowedMethods(vectorToSet(allowedMethodsVector)),
 		autoIndex(autoIndex), index(index), uploadPath(uploadPath),
 		cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
   }
@@ -66,6 +66,53 @@ class Location {
 
   std::set<HttpMethod> getMethods() const {
     return this->allowedMethods;
+  }
+
+
+  static HttpMethod extractMethodFromStr(const std::string &method) {
+	if (method == "GET") {
+	  return GET;
+	} else if (method == "POST") {
+	  return POST;
+	} else if (method == "DELETE") {
+	  return DELETE;
+	}
+	throw std::runtime_error("Config file error: wrong server allowed method: " + method);
+  }
+
+  static std::string extractStringFromMethod(HttpMethod method) {
+	if (method == GET) {
+	  return "GET";
+	} else if (method == POST) {
+	  return "POST";
+	} else if (method == DELETE) {
+	  return "DELETE";
+	}
+	std::stringstream ss;
+	ss << "Config file error: wrong server allowed method: " << method;
+	throw std::runtime_error(ss.str());
+  }
+
+  std::set<HttpMethod> vectorToSet(const std::vector<std::string> &v) const {
+    std::set<HttpMethod> methodsSet;
+    for (std::vector<std::string>::const_iterator it = v.begin(); it != v.end(); ++it) {
+      methodsSet.insert(extractMethodFromStr(*it));
+    }
+
+    return methodsSet;
+  }
+
+  std::vector<std::string> setToVector(const std::set<HttpMethod> &methodsSet) const {
+    std::vector<std::string> methodsVector;
+    for (std::set<HttpMethod>::const_iterator it = methodsSet.begin(); it != methodsSet.end(); ++it) {
+      methodsVector.push_back(extractStringFromMethod(*it));
+    }
+
+    return methodsVector;
+  }
+
+  std::vector<std::string> getMethodsVector() const {
+    return setToVector(this->allowedMethods);
   }
 
   bool getAutoindex() const {

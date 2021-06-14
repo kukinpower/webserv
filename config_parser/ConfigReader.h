@@ -116,7 +116,7 @@ class ConfigReader {
         std::cout << "Url: " << ltmp.getUrl() << std::endl;
         std::cout << "Root: " << (ltmp.getRoot().length() > 0 ? ltmp.getRoot() : "NONE") << std::endl;
         std::cout << "Allowed methods: ";
-        vec = ltmp.getMethods();
+        vec = ltmp.getMethodsVector();
         vit = vec.begin();
         while (vit != vec.end()) {
           std::cout << *vit++ << " ";
@@ -201,18 +201,6 @@ class ConfigReader {
       throw std::runtime_error("Config file error: wrong server option. Exiting...");
     }
   }
-
-  //todo
-//  HttpMethod extractMethodFromStr(const std::string &method) {
-//	if (method == "GET") {
-//	  return GET;
-//	} else if (method == "POST") {
-//	  return POST;
-//	} else if (method == "DELETE") {
-//	  return DELETE;
-//	}
-//	throw std::runtime_error("Config file error: wrong server allowed method: " + method);
-//  }
 
   void addLocationData(Loc &loc, std::string &str) {
     std::vector<std::string> spl = strSplit(str);
