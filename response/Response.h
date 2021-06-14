@@ -114,7 +114,14 @@ class Response {
 
       struct dirent *ent;
       while ((ent = readdir(dir)) != NULL) {
-        ss << "<li><a href=\"" << ServerStruct::getServerAddress(serverStruct) << request.getPath() << "/" << ent->d_name << "\">" << ent->d_name << "</a></li>" << std::endl;
+        std::string fileName = (ent->d_name);
+        if (!(fileName == "." || fileName == "..")) {
+          ss << "<li><a href=\"" << ServerStruct::getServerAddress(serverStruct) << request.getPath();
+          if (request.getPath()[request.getPath().length() - 1] != '/') {
+            ss << "/";
+          }
+          ss << ent->d_name << "\">" << ent->d_name << "</a></li>" << std::endl;
+        }
       }
       closedir(dir);
 
