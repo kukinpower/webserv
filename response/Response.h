@@ -39,7 +39,7 @@ class Response {
   const ServerStruct &serverStruct;
 
   std::string responseBody;
-  HttpStatus status;
+  HttpStatus responseStatus;
   std::vector<Location>::const_iterator requestLocation;
 
   typedef std::map<std::string, std::string>::iterator iterator;
@@ -90,7 +90,7 @@ class Response {
   std::string generateHeaders() {
     std::vector<std::string> responseHeaders;
 
-    if (!isErrorStatus(status)) {
+    if (!isErrorStatus(responseStatus)) {
       headers.insert(std::make_pair("Content-Length", Logger::toString(responseBody.length())));
     }
 
@@ -101,7 +101,7 @@ class Response {
     responseHeaders = convertHeadersToStringVector(headers);
 
     // insert front main line: HTTP/1.1 code NAME
-    responseHeaders.insert(responseHeaders.begin(), STATUSES.find(status)->second.createMainLine());
+    responseHeaders.insert(responseHeaders.begin(), STATUSES.find(responseStatus)->second.createMainLine());
 
     return joinStrings(responseHeaders, "\r\n");
   }
@@ -157,7 +157,7 @@ class Response {
         }
       }
     }
-    status = OK;
+    responseStatus = OK;
   }
 
   static std::string getDocumentContent(std::ifstream &fileStream) {
@@ -200,16 +200,16 @@ class Response {
       }
     } catch (const FileNotFoundException &e) {
       LOGGER.debug(e.what());
-      status = NOT_FOUND;
+      responseStatus = NOT_FOUND;
     } catch (const RuntimeWebServException &e) {
-      status = INTERNAL_SERVER_ERROR;
+      responseStatus = INTERNAL_SERVER_ERROR;
     }
 
     return StringBuilder().append(generateHeaders()).append("\r\n\r\n").append(responseBody).toString();
   }
 
   HttpStatus getStatus() const {
-    return status;
+    return responseStatus;
   }
 
  private:
