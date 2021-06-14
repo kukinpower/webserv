@@ -86,7 +86,6 @@ class Server {
  private:
   static void setNonBlock(int fd) {
     if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0) {
-//      throw NonBlockException(Logger::toString(WebServException::FCNTL_ERROR) + " on fd: " + Logger::toString(fd));
       throw NonBlockException(StringBuilder()
                                       .append(WebServException::FCNTL_ERROR)
                                       .append(" on fd: ")
@@ -196,20 +195,30 @@ class Server {
              request != client->getRequests().end();) {
           LOGGER.info("Start sending to client: " + Logger::toString(maxFd));
 
-          std::string response = Response(*request, locations).generateResponse();
-          if (send(client->getFd(), response.c_str(), response.length(), 0) == -1) {
+          Response response(*request, locations);
+          std::string responseBody = response.generateResponse();
+          if (send(client->getFd(), responseBody.c_str(), responseBody.length(), 0) == -1) {
 			LOGGER.error(StringBuilder()
 			                          .append(WebServException::SEND_ERROR)
 			                          .append(" fd: ")
 			                          .append(client->getFd())
-			                          .append(", response: ")
-			                          .append(response)
+			                          .append(", response body: ")
+			                          .append(responseBody)
 			                          .toString());
 			throw SendException();
+          }
+          if (response.getStatus() == INTERNAL_SERVER_ERROR) {
+            client->setClientStatus(CLOSED);
+            break;
           }
           request = client->getRequests().erase(request);
         }
       }
+
+      if (client->getClientStatus() == CLOSED) {
+        client = clients.erase(client);
+      }
+
       if (FD_ISSET(client->getFd(), &readFds)) {
         try {
           client->processReading();

@@ -12,7 +12,7 @@ class HttpStatusWrapper {
   HttpStatusWrapper(HttpStatus status, const std::string &name) : status(status), code(status), name(name) {}
 
   std::string createMainLine() const {
-    return StringBuilder().append(PROTOCOL).append(" ").append(code).append(name).toString();
+    return StringBuilder().append(PROTOCOL).append(" ").append(code).append(" ").append(name).toString();
   }
 };
 

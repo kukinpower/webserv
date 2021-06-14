@@ -125,7 +125,7 @@ class ConfigReader {
         }
         std::cout << std::endl;
 
-        std::cout << "Autoindex: " << ltmp.getAutoindex() << " (1 = on, 0 = off)" << std::endl;
+        std::cout << "Autoindex: " << ltmp.getAutoIndex() << " (1 = on, 0 = off)" << std::endl;
         std::cout << "Index: ";
         vec = ltmp.getIndex();
         vit = vec.begin();

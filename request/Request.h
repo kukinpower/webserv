@@ -9,7 +9,6 @@
 class Request {
  public:
   typedef std::map<std::string, std::string> Headers;
-  typedef std::map<std::string, std::string> MimeTypes;
 
  private:
   // constants
@@ -22,17 +21,6 @@ class Request {
   Headers headers;
   std::string body;
   RequestStatus status;
-  static const MimeTypes MIME;
-
-  static Headers initMimeTypes() {
-    Headers mime;
-    mime.insert(std::make_pair(".htm", "text/html"));
-    mime.insert(std::make_pair(".html", "text/html"));
-    mime.insert(std::make_pair(".jpg", "image/jpeg"));
-    mime.insert(std::make_pair(".jpeg", "image/jpeg"));
-    mime.insert(std::make_pair(".js", "text/javascript"));
-    return mime;
-  }
 
  public:
   Request(HttpMethod method,
@@ -137,4 +125,3 @@ class Request {
 };
 
 const char *Request::HEADER_DELIMETER = ": ";
-const Request::MimeTypes Request::MIME = initMimeTypes();

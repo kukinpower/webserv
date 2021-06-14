@@ -34,9 +34,10 @@ class Client {
   static Logger LOGGER;
   std::vector<Request> requests;
   size_t cursorLength;
+  ClientStatus clientStatus;
 
  public:
-  Client(int fd) : fd(fd) {}
+  Client(int fd) : fd(fd), clientStatus(READ) {}
   virtual ~Client() {}
 
   Client(const Client &request) {
@@ -163,6 +164,14 @@ class Client {
 
   std::vector<Request> &getRequests() {
     return requests;
+  }
+
+  ClientStatus getClientStatus() const {
+    return clientStatus;
+  }
+
+  void setClientStatus(ClientStatus client_status) {
+    clientStatus = client_status;
   }
 };
 

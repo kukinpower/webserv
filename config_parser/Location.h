@@ -50,8 +50,11 @@ class Location {
   //Location(Location const &other){};
   //Location &operator=(Location const &other){};
 
-  std::string substitutePath(const std::string &path) {
-
+  std::string substitutePath(const std::string &path) const {
+    if (path.find(url) != std::string::npos) {
+      return root + path.substr(url.length() - 1);
+    }
+    throw RuntimeWebServException("Bad path string provided: " + path + ". Not matches with url: " + url);
   }
 
   bool isMethodAllowed(HttpMethod method) const {
@@ -120,10 +123,6 @@ class Location {
     return setToVector(this->allowedMethods);
   }
 
-  bool getAutoindex() const {
-    return this->autoIndex;
-  }
-
   std::vector<std::string> getIndex() const {
     return this->index;
   }
@@ -142,5 +141,13 @@ class Location {
 
   std::string getErrorPage() const {
     return this->errorPage;
+  }
+
+  bool isAutoIndex() const {
+    return autoIndex;
+  }
+
+  bool getAutoIndex() const {
+    return autoIndex;
   }
 };
