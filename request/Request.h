@@ -88,7 +88,7 @@ class Request {
   }
 
   static bool isConnectionClose(const Headers &requestHeaders) {
-    return (requestHeaders.count("Connection") != 0 && requestHeaders.find("Connection")->second == "Close");
+    return (requestHeaders.count("Connection") != 0 && requestHeaders.find("Connection")->second == "close");
   }
 
   static HttpMethod extractMethod(const std::string &line) {

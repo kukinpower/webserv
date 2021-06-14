@@ -50,6 +50,10 @@ class Location {
   //Location(Location const &other){};
   //Location &operator=(Location const &other){};
 
+  std::string substitutePath(const std::string &path) {
+
+  }
+
   bool isMethodAllowed(HttpMethod method) const {
 	return allowedMethods.find(method) != allowedMethods.end();
   }

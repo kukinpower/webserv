@@ -18,7 +18,6 @@ struct Srv {
 struct Loc {
   std::string url;
   std::string root;
-//  std::vector<HttpMethod> allowMethod;
   std::vector<std::string> allowMethod;
   bool autoIndex;
   std::vector<std::string> index;

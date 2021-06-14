@@ -92,5 +92,4 @@ class WebServer {
   }
 };
 
-// todo ifndef
 Logger WebServer::LOGGER(Logger::DEBUG);

@@ -14,3 +14,7 @@ include_directories(server)
 
 add_executable(webserv
         main.cpp)
+
+set_target_properties(webserv PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG ../
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE ../)

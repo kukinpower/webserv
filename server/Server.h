@@ -31,7 +31,6 @@ class Server {
   // constants
   static const int TCP = 0;
   static const int BACKLOG = 5;
-  static const int BUF_SIZE = 256;
   // vars
   std::vector<Client> clients;
   int port;
@@ -264,5 +263,4 @@ class Server {
   }
 };
 
-// todo ifndef
 Logger Server::LOGGER(Logger::DEBUG);
