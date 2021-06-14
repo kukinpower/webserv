@@ -1,5 +1,5 @@
 #pragma once
-#include "Method.h"
+#include "HttpMethod.h"
 #include "RequestStatus.h"
 
 #include "MaxRequestSizeExceededException.h"
@@ -9,7 +9,6 @@
 class Request {
  public:
   typedef std::map<std::string, std::string> Headers;
-  typedef std::map<std::string, std::string> MimeTypes;
 
  private:
   // constants
@@ -17,28 +16,17 @@ class Request {
   static const int HEADER_DELIMETER_LENGTH = 2;
   static const char *HEADER_DELIMETER;
   // vars
-  Method method;
+  HttpMethod method;
   std::string path;
   Headers headers;
   std::string body;
   RequestStatus status;
-  static const MimeTypes MIME;
-
-  static Headers initMimeTypes() {
-    Headers mime;
-    mime.insert(std::make_pair(".htm", "text/html"));
-    mime.insert(std::make_pair(".html", "text/html"));
-    mime.insert(std::make_pair(".jpg", "image/jpeg"));
-    mime.insert(std::make_pair(".jpeg", "image/jpeg"));
-    mime.insert(std::make_pair(".js", "text/javascript"));
-    return mime;
-  }
 
  public:
-  Request(Method method,
-          const std::string &path,
-          const std::map<std::string, std::string> &headers,
-          const std::string &body = "",
+  Request(HttpMethod method,
+		  const std::string &path,
+		  const std::map<std::string, std::string> &headers,
+		  const std::string &body = "",
 		  RequestStatus status = READY)
       : method(method), path(path), headers(headers), body(body), status(status) {}
 
@@ -88,10 +76,10 @@ class Request {
   }
 
   static bool isConnectionClose(const Headers &requestHeaders) {
-    return (requestHeaders.count("Connection") != 0 && requestHeaders.find("Connection")->second == "Close");
+    return (requestHeaders.count("Connection") != 0 && requestHeaders.find("Connection")->second == "close");
   }
 
-  static Method extractMethod(const std::string &line) {
+  static HttpMethod extractMethod(const std::string &line) {
     if (line.find("POST") != std::string::npos) {
       return POST;
     }
@@ -107,7 +95,7 @@ class Request {
     return line.substr(start, end - start);
   }
 
-  Method getMethod() const {
+  HttpMethod getMethod() const {
     return method;
   }
   const std::string &getPath() const {
@@ -137,4 +125,3 @@ class Request {
 };
 
 const char *Request::HEADER_DELIMETER = ": ";
-const Request::MimeTypes Request::MIME = initMimeTypes();

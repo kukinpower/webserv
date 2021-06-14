@@ -38,6 +38,8 @@ class WebServException : public std::exception {
   static const char *SEND_ERROR;
   static const char *NON_BLOCK_ERROR;
 
+  static const char *FILE_NOT_FOUND;
+
   static const char *MAX_REQ_SIZE_EXCEEDED;
 };
 
@@ -52,5 +54,7 @@ const char *WebServException::FCNTL_ERROR = "Fcntl error";
 const char *WebServException::READ_ERROR = "Read error";
 const char *WebServException::SEND_ERROR = "Send error";
 const char *WebServException::NON_BLOCK_ERROR = "Non block error";
+
+const char *WebServException::FILE_NOT_FOUND = "Requested path not found";
 
 const char *WebServException::MAX_REQ_SIZE_EXCEEDED = "Maximum request size body exceeded";

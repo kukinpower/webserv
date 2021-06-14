@@ -34,9 +34,10 @@ class Client {
   static Logger LOGGER;
   std::vector<Request> requests;
   size_t cursorLength;
+  ClientStatus clientStatus;
 
  public:
-  Client(int fd) : fd(fd) {}
+  Client(int fd) : fd(fd), clientStatus(READ) {}
   virtual ~Client() {}
 
   Client(const Client &request) {
@@ -46,6 +47,7 @@ class Client {
     this->fd = request.fd;
     this->requestBody = request.requestBody;
     this->requests = request.requests;
+    this->clientStatus = request.clientStatus;
     return *this;
   }
 
@@ -94,7 +96,7 @@ class Client {
 		const std::string &headerFull = requestBody.substr(0, pos);
 
 		const std::string &mainLine = getMainLine(headerFull);
-		Method method = Request::extractMethod(mainLine);
+		HttpMethod method = Request::extractMethod(mainLine);
 		const std::string &path = Request::extractPath(mainLine);
 
 		Request::Headers requestHeaders = Request::extractHttpHeaders(headerFull, pos);
@@ -163,6 +165,14 @@ class Client {
 
   std::vector<Request> &getRequests() {
     return requests;
+  }
+
+  ClientStatus getClientStatus() const {
+    return clientStatus;
+  }
+
+  void setClientStatus(ClientStatus client_status) {
+    clientStatus = client_status;
   }
 };
 

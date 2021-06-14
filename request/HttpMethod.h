@@ -1,5 +1,5 @@
 #pragma once
 
-enum Method {
+enum HttpMethod {
   GET, POST, UPDATE, DELETE, PATCH
 };

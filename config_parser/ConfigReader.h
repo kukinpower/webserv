@@ -115,7 +115,7 @@ class ConfigReader {
         std::cout << "Url: " << ltmp.getUrl() << std::endl;
         std::cout << "Root: " << (ltmp.getRoot().length() > 0 ? ltmp.getRoot() : "NONE") << std::endl;
         std::cout << "Allowed methods: ";
-        vec = ltmp.getMethods();
+        vec = ltmp.getMethodsVector();
         vit = vec.begin();
         while (vit != vec.end()) {
           std::cout << *vit++ << " ";
@@ -125,7 +125,7 @@ class ConfigReader {
         }
         std::cout << std::endl;
 
-        std::cout << "Autoindex: " << ltmp.getAutoindex() << " (1 = on, 0 = off)" << std::endl;
+        std::cout << "Autoindex: " << ltmp.getAutoIndex() << " (1 = on, 0 = off)" << std::endl;
         std::cout << "Index: ";
         vec = ltmp.getIndex();
         vit = vec.begin();
@@ -216,10 +216,11 @@ class ConfigReader {
         if (spl.back() != "GET" && spl.back() != "POST" && spl.back() != "DELETE") {
           throw std::runtime_error("Config file error: wrong location option. Exiting...");
         }
+//        loc.allowMethod.push_back(extractMethodFromStr(spl.back())); // add check for allowed
         loc.allowMethod.push_back(spl.back()); // add check for allowed
         spl.pop_back();
       }
-    } else if (spl.front().compare("autoindex") == 0) {
+    } else if (spl.front().compare("autoIndex") == 0) {
       spl.back() == "on" ? loc.autoIndex = true : loc.autoIndex = false;
     } else if (spl.front().compare("index") == 0) {
       while (spl.size() != 1) {
@@ -273,7 +274,7 @@ class ConfigReader {
         loc.cgiExt.clear();
         i++;
       }
-      // todo control flow
+
       if ((*it == "}" && i == count - 2) || it == data.end() - 1) {
         break;
       }

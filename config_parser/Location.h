@@ -1,30 +1,47 @@
 #pragma once
+#include "Logger.h"
+
 #include <string>
 #include <vector>
+#include <set>
+#include <sstream>
 
 class Location {
+ private:
+  std::string url;
+  std::string root;
+  std::set<HttpMethod> allowedMethods;
+  bool autoIndex;
+  std::vector<std::string> index;
+  std::string uploadPath;
+  std::vector<std::string> cgiExt;
+  std::string cgiPath;
+  std::string errorPage;
+
  public:
-  Location(void) {}
+  Location(void) {
+  }
+
   Location(int def) {
     this->url = "/";
-    this->allowMethod.push_back("GET");
-    this->allowMethod.push_back("POST");
-    this->allowMethod.push_back("DELETE");
+    this->allowedMethods.insert(GET);
+    this->allowedMethods.insert(POST);
+    this->allowedMethods.insert(DELETE);
     this->root = "./html";
-    this->autoindex = true;
+    this->autoIndex = true;
     this->index.push_back("index.html");
   }
 
-  Location(std::string url, std::string root, std::vector<std::string> allowMethod,
-           bool autoindex, std::vector<std::string> index, std::string uploadPath,
-           std::vector<std::string> cgiExt, std::string cgiPath, std::string errorPage)
-      : url(url), root(root), allowMethod(allowMethod),
-        autoindex(autoindex), index(index), uploadPath(uploadPath),
-        cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
+  Location(const std::string& url, const std::string& root, const std::vector<std::string> &allowedMethodsVector,
+           bool autoIndex, const std::vector<std::string>& index, const std::string& uploadPath,
+           const std::vector<std::string>& cgiExt, const std::string& cgiPath, const std::string& errorPage)
+      : url(url), root(root), allowedMethods(vectorToSet(allowedMethodsVector)),
+		autoIndex(autoIndex), index(index), uploadPath(uploadPath),
+		cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
   }
 
   ~Location() {
-    this->allowMethod.clear();
+    this->allowedMethods.clear();
     this->index.clear();
     this->cgiExt.clear();
   }
@@ -33,8 +50,20 @@ class Location {
   //Location(Location const &other){};
   //Location &operator=(Location const &other){};
 
-  bool matches(const std::string &path) {
-	return true;
+  std::string substitutePath(const std::string &path) const {
+    if (path.find(url) != std::string::npos) {
+      return root + path.substr(url.length() - 1);
+    }
+    throw RuntimeWebServException("Bad path string provided: " + path + ". Not matches with url: " + url);
+  }
+
+  bool isMethodAllowed(HttpMethod method) const {
+	return allowedMethods.find(method) != allowedMethods.end();
+  }
+
+  bool matches(const std::string &path) const {
+	return (path.length() == 1 && url.length() == 1 && path == url) ||
+			(path.substr(1).rfind(url.substr(1), 0) == 0);
   }
 
   std::string getUrl() const {
@@ -45,12 +74,53 @@ class Location {
     return this->root;
   }
 
-  std::vector<std::string> getMethods() const {
-    return this->allowMethod;
+  std::set<HttpMethod> getMethods() const {
+    return this->allowedMethods;
   }
 
-  bool getAutoindex() const {
-    return this->autoindex;
+
+  static HttpMethod extractMethodFromStr(const std::string &method) {
+	if (method == "GET") {
+	  return GET;
+	} else if (method == "POST") {
+	  return POST;
+	} else if (method == "DELETE") {
+	  return DELETE;
+	}
+	throw std::runtime_error("Config file error: wrong server allowed method: " + method);
+  }
+
+  static std::string extractStringFromMethod(HttpMethod method) {
+	if (method == GET) {
+	  return "GET";
+	} else if (method == POST) {
+	  return "POST";
+	} else if (method == DELETE) {
+	  return "DELETE";
+	}
+	throw std::runtime_error("Config file error: wrong server allowed method: " + Logger::toString(method));
+  }
+
+  std::set<HttpMethod> vectorToSet(const std::vector<std::string> &v) const {
+    std::set<HttpMethod> methodsSet;
+    for (std::vector<std::string>::const_iterator it = v.begin(); it != v.end(); ++it) {
+      methodsSet.insert(extractMethodFromStr(*it));
+    }
+
+    return methodsSet;
+  }
+
+  std::vector<std::string> setToVector(const std::set<HttpMethod> &methodsSet) const {
+    std::vector<std::string> methodsVector;
+    for (std::set<HttpMethod>::const_iterator it = methodsSet.begin(); it != methodsSet.end(); ++it) {
+      methodsVector.push_back(extractStringFromMethod(*it));
+    }
+
+    return methodsVector;
+  }
+
+  std::vector<std::string> getMethodsVector() const {
+    return setToVector(this->allowedMethods);
   }
 
   std::vector<std::string> getIndex() const {
@@ -73,14 +143,11 @@ class Location {
     return this->errorPage;
   }
 
- private:
-  std::string url;
-  std::string root;
-  std::vector<std::string> allowMethod;
-  bool autoindex;
-  std::vector<std::string> index;
-  std::string uploadPath;
-  std::vector<std::string> cgiExt;
-  std::string cgiPath;
-  std::string errorPage;
+  bool isAutoIndex() const {
+    return autoIndex;
+  }
+
+  bool getAutoIndex() const {
+    return autoIndex;
+  }
 };

@@ -9,7 +9,6 @@ int main(int ac, char *av[]) {
     server.parseConfig(ac, av);
     server.run();
   } catch (std::exception &e) {
-    // todo error management
     Logger LOGGER;
     LOGGER.error(e.what());
     return 1;

@@ -33,56 +33,63 @@ class WebServer {
 
  public:
   WebServer() {}
-  ~WebServer() {}
-  // todo coplien
+  virtual ~WebServer() {}
+
+  WebServer(const WebServer &server) {
+    operator=(server);
+  }
+
+  WebServer &operator=(const WebServer &server) {
+    this->servers = server.servers;
+    return *this;
+  }
 
  private:
   void routine() {
-	while (true) {
-	  std::vector<Server>::iterator server = servers.begin();
-	  while (server != servers.end()) {
-		try {
-		  server->processSelect();
-		  ++server;
-		} catch (const RuntimeWebServException &e) {
-		  LOGGER.error(e.what());
-		  ++server;
-		} catch (const FatalWebServException &e) {
-		  server = servers.erase(server);
-		}
-	  }
-	}
+    while (true) {
+      std::vector<Server>::iterator server = servers.begin();
+      while (server != servers.end()) {
+        try {
+          server->processSelect();
+          ++server;
+        } catch (const RuntimeWebServException &e) {
+          LOGGER.error(e.what());
+          ++server;
+        } catch (const FatalWebServException &e) {
+          server = servers.erase(server);
+        }
+      }
+    }
   }
 
  public:
   void parseConfig(int ac, char *av[]) {
-	if (ac == 1) {
-	  ConfigReader conf;
-	  conf.printData();
-	  this->servers = conf.getServers();
-	} else {
-	  ConfigReader conf(av[1]);
-	  conf.readConfig();
-	  conf.printData();
-	  this->servers = conf.getServers();
-	}
+    if (ac == 1) {
+      ConfigReader conf;
+      conf.printData();
+      this->servers = conf.getServers();
+    } else {
+      ConfigReader conf(av[1]);
+      conf.readConfig();
+      conf.printData();
+      this->servers = conf.getServers();
+    }
   }
 
   void run() {
-	std::vector<Server>::iterator server = servers.begin();
-	while (server != servers.end()) {
-	  try {
-		server->run();
-		++server;
-	  } catch (const FatalWebServException &e) {
-		LOGGER.error(e.what());
-		server = servers.erase(server);
-	  }
-	}
+    std::vector<Server>::iterator server = servers.begin();
+    while (server != servers.end()) {
+      try {
+        server->run();
+        ++server;
+      } catch (const FatalWebServException &e) {
+        LOGGER.error(e.what());
+        server = servers.erase(server);
+      }
+    }
 
-	routine();
+    routine();
   }
 };
 
-// todo ifndef
 Logger WebServer::LOGGER(Logger::DEBUG);

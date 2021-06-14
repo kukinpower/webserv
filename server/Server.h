@@ -2,6 +2,8 @@
 #include "Logger.h"
 #include "Client.h"
 #include "Location.h"
+#include "StringBuilder.h"
+#include "ServerStruct.h"
 
 #include "SelectException.h"
 #include "BadListenerFdException.h"
@@ -30,7 +32,6 @@ class Server {
   // constants
   static const int TCP = 0;
   static const int BACKLOG = 5;
-  static const int BUF_SIZE = 256;
   // vars
   std::vector<Client> clients;
   int port;
@@ -86,9 +87,11 @@ class Server {
  private:
   static void setNonBlock(int fd) {
     if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0) {
-      std::stringstream ss;
-      ss << WebServException::FCNTL_ERROR << " on fd: " << fd;
-      throw NonBlockException(ss.str());
+      throw NonBlockException(StringBuilder()
+                                      .append(WebServException::FCNTL_ERROR)
+                                      .append(" on fd: ")
+                                      .append(fd)
+                                      .toString());
     }
   }
 
@@ -170,7 +173,6 @@ class Server {
 	int selectRes;
     if ((selectRes = select(maxFd + 1, &readFds, &writeFds, NULL, &time)) == -1) {
       LOGGER.error(WebServException::SELECT_ERROR);
-//      std::cin >> maxFd;
       throw SelectException();
     }
     if (selectRes == 0) {
@@ -181,9 +183,7 @@ class Server {
     if (FD_ISSET(listenerFd, &readFds)) {
       try {
         maxFd = acceptConnection(maxFd);
-		std::stringstream ss;
-		ss << "Client with fd " << maxFd << " connected ";
-		LOGGER.info(ss.str());
+		LOGGER.info("Client connected, fd: " + Logger::toString(maxFd));
       } catch (const RuntimeWebServException &e) {
         LOGGER.error(e.what());
       }
@@ -194,17 +194,32 @@ class Server {
       if (FD_ISSET(client->getFd(), &writeFds)) {
         for (std::vector<Request>::iterator request = client->getRequests().begin();
              request != client->getRequests().end();) {
-		  LOGGER.info("We will send now");
-          std::string response = Response(*request, locations).generateResponse();
-          if (send(client->getFd(), response.c_str(), response.length(), 0) == -1) {
-            std::stringstream ss;
-            ss << WebServException::SEND_ERROR << " fd: " << client->getFd() << ", response: " << response;
-			LOGGER.error(ss.str());
+          LOGGER.info("Start sending to client: " + Logger::toString(maxFd));
+
+          Response response(*request, createServerStruct());
+          std::string responseBody = response.generateResponse();
+          if (send(client->getFd(), responseBody.c_str(), responseBody.length(), 0) == -1) {
+			LOGGER.error(StringBuilder()
+			                          .append(WebServException::SEND_ERROR)
+			                          .append(" fd: ")
+			                          .append(client->getFd())
+			                          .append(", response body: ")
+			                          .append(responseBody)
+			                          .toString());
 			throw SendException();
+          }
+          if (response.getStatus() == INTERNAL_SERVER_ERROR) {
+            client->setClientStatus(CLOSED);
+            break;
           }
           request = client->getRequests().erase(request);
         }
       }
+
+      if (client->getClientStatus() == CLOSED) {
+        client = clients.erase(client);
+      }
+
       if (FD_ISSET(client->getFd(), &readFds)) {
         try {
           client->processReading();
@@ -256,7 +271,11 @@ class Server {
   std::vector<Location> getLocations() const {
     return this->locations;
   }
+
+ private:
+  ServerStruct createServerStruct() const {
+    return ServerStruct(port, hostName, serverName, maxBodySize, locations);
+  }
 };
 
-// todo ifndef
 Logger Server::LOGGER(Logger::DEBUG);
