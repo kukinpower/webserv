@@ -4,6 +4,8 @@
 #include "Logger.h"
 #include "StringBuilder.h"
 #include "HttpStatusWrapper.h"
+#include "Request.h"
+#include "ServerStruct.h"
 
 #include "FatalWebServException.h"
 #include "FileNotFoundException.h"
@@ -14,6 +16,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <dirent.h>
+
+class Server;
 
 class Response {
  public:
@@ -31,7 +36,7 @@ class Response {
   int fd;
   Headers headers;
   Request request;
-  const std::vector<Location> &locations;
+  const ServerStruct &serverStruct;
 
   std::string responseBody;
   HttpStatus status;
@@ -44,11 +49,10 @@ class Response {
     return headers.insert(std::make_pair(key, value));
   }
 
-  Response(const Request &request, const std::vector<Location> &locations) : request(request), locations(locations) {
-  }
+  Response(const Request &request, const ServerStruct &server_struct)
+      : request(request), serverStruct(server_struct) {}
 
  private:
-
   std::string joinStrings(const std::vector<std::string> &v, const std::string &sequence) {
     std::stringstream ss;
     for (int i = 0; i < v.size(); ++i) {
@@ -91,7 +95,6 @@ class Response {
     }
 
     //todo server name
-    //todo content type
     headers.insert(std::make_pair("Content-Type", getContentType(request.getPath())));
 
     responseHeaders = convertHeadersToStringVector(headers);
@@ -102,8 +105,24 @@ class Response {
     return joinStrings(responseHeaders, "\r\n");
   }
 
-  static std::string generateAutoIndex(const std::string &path) {
-    return "autoindex here";
+  std::string generateAutoIndex(const std::string &path) {
+    DIR *dir = opendir(path.c_str());
+    if (dir != NULL) {
+      std::stringstream ss;
+
+      ss << "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><title>" << path << "</title></head><body>";
+
+      struct dirent *ent;
+      while ((ent = readdir(dir)) != NULL) {
+        ss << "<li><a href=\"" << ServerStruct::getServerAddress(serverStruct) << request.getPath() << "/" << ent->d_name << "\">" << ent->d_name << "</a></li>" << std::endl;
+      }
+      closedir(dir);
+
+      ss << "</body></html>";
+      return ss.str();
+    }
+
+    throw RuntimeWebServException("Couldn't open directory by path: " + path);
   }
 
   void doGet() {
@@ -143,8 +162,8 @@ class Response {
  public:
   std::string generateResponse() {
     try {
-      for (std::vector<Location>::const_iterator location = locations.begin();
-           location != locations.end();
+      for (std::vector<Location>::const_iterator location = serverStruct.locations.begin();
+           location != serverStruct.locations.end();
            ++location) {
 
         if (location->matches(request.getPath()) && location->isMethodAllowed(request.getMethod())) {
@@ -214,4 +233,3 @@ class Response {
 const Response::HttpStatuses Response::STATUSES = initHttpStatuses();
 const Response::MimeTypes Response::MIME = initMimeTypes();
 Logger Response::LOGGER(Logger::DEBUG);
-

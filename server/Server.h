@@ -3,6 +3,7 @@
 #include "Client.h"
 #include "Location.h"
 #include "StringBuilder.h"
+#include "ServerStruct.h"
 
 #include "SelectException.h"
 #include "BadListenerFdException.h"
@@ -195,7 +196,7 @@ class Server {
              request != client->getRequests().end();) {
           LOGGER.info("Start sending to client: " + Logger::toString(maxFd));
 
-          Response response(*request, locations);
+          Response response(*request, createServerStruct());
           std::string responseBody = response.generateResponse();
           if (send(client->getFd(), responseBody.c_str(), responseBody.length(), 0) == -1) {
 			LOGGER.error(StringBuilder()
@@ -269,6 +270,11 @@ class Server {
 
   std::vector<Location> getLocations() const {
     return this->locations;
+  }
+
+ private:
+  ServerStruct createServerStruct() const {
+    return ServerStruct(port, hostName, serverName, maxBodySize, locations);
   }
 };
 

@@ -47,6 +47,7 @@ class Client {
     this->fd = request.fd;
     this->requestBody = request.requestBody;
     this->requests = request.requests;
+    this->clientStatus = request.clientStatus;
     return *this;
   }
 
