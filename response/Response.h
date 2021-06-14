@@ -72,7 +72,15 @@ class Response {
   }
 
   static std::string getContentType(const std::string &path) {
-    return MIME.find(path.substr(path.rfind(".")))->second;
+    unsigned long pos;
+    if ((pos = path.rfind(".") != std::string::npos)) {
+      std::string mimeType = path.substr(pos);
+      MimeTypes::const_iterator it;
+      if ((it = MIME.find(mimeType)) != MIME.end()) {
+        return it->second;
+      }
+    }
+    return MIME.find(".html")->second;
   }
 
   std::string generateHeaders() {
