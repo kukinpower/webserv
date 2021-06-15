@@ -18,7 +18,7 @@
 #include <sys/select.h>
 #include <sys/fcntl.h>
 #include <unistd.h>
-#include <stdlib.h>     /* atoi */
+#include <cstdlib>     /* atoi */
 
 #include <vector>
 #include <iostream>
@@ -31,13 +31,13 @@ class Client {
  private:
   int fd;
   std::string requestBody;
-  Logger LOGGER;
+  static Logger LOGGER;
   std::vector<Request> requests;
-  ClientStatus status;
   size_t cursorLength;
+  ClientStatus clientStatus;
 
  public:
-  Client(int fd) : fd(fd), status(READ) {}
+  Client(int fd) : fd(fd), clientStatus(READ) {}
   virtual ~Client() {}
 
   Client(const Client &request) {
@@ -47,7 +47,7 @@ class Client {
     this->fd = request.fd;
     this->requestBody = request.requestBody;
     this->requests = request.requests;
-    this->status = request.status;
+    this->clientStatus = request.clientStatus;
     return *this;
   }
 
@@ -65,45 +65,65 @@ class Client {
   }
 
   bool containsRequestEnd() {
-    return requestBody.find(REQUEST_END) != requestBody.npos;
+    return requestBody.find(REQUEST_END) != std::string::npos;
   }
 
  private:
+
+  std::string getMainLine(const std::string &headerFull) {
+	return headerFull.substr(0, headerFull.find("\r\n"));
+  }
+  
+  void appendBodyToCurrentRequest() {
+	Request &request = requests.back();
+
+	unsigned long currentRequestBodyLength = request.getBody().length();
+	size_t lengthFromHeaders = request.getLength();
+
+	request.setBody(request.getBody() + requestBody.substr(0, lengthFromHeaders - currentRequestBodyLength));
+	requestBody.erase(0, lengthFromHeaders - currentRequestBodyLength);
+
+	if (request.getBody().length() == lengthFromHeaders) {
+	  request.setStatus(READY);
+	}
+  }
 
   // todo use cursorLength ?
   void parseRequests() {
     size_t pos = 0;
     std::string headersToken;
     while ((pos = requestBody.find(REQUEST_END)) != std::string::npos) {
-      const std::string &headerFull = requestBody.substr(0, pos);
-      size_t headersStart = headerFull.find("\r\n") + 2;
-      const std::string &mainLine = headerFull.substr(0, headerFull.find("\r\n"));
+		const std::string &headerFull = requestBody.substr(0, pos);
 
-      Method method = Request::extractMethod(mainLine);
-      const std::string &path = Request::extractPath(mainLine);
-      Request::Headers requestHeaders = Request::extractHttpHeaders(requestBody.substr(headersStart, pos - headersStart));
-      pos += REQUEST_END_LENGTH;
-      std::string body = "";
+		const std::string &mainLine = getMainLine(headerFull);
+		HttpMethod method = Request::extractMethod(mainLine);
+		const std::string &path = Request::extractPath(mainLine);
 
-      // todo what if not full body is read?
-      if (Request::hasConnectionClose(requestHeaders)) {
-        body = requestBody.substr(pos);
-        requests.push_back(Request(method, path, requestHeaders, body));
-        status = CLOSED;
-        return;
-      }
+		Request::Headers requestHeaders = Request::extractHttpHeaders(headerFull, pos);
+		pos += REQUEST_END_LENGTH;
+		std::string body = "";
 
-      requestBody = requestBody.erase(0, pos);
+		// todo what if not full body is read?
+		if (Request::isConnectionClose(requestHeaders)) {
+		  body = requestBody.substr(pos);
+		  requests.push_back(Request(method, path, requestHeaders, body));
+		  return;
+		}
 
-      if (Request::hasBodyLength(requestHeaders)) {
-        size_t length = Request::getLengthFromHeaders(requestHeaders);
-        body = requestBody.substr(0, length);
-        requestBody = requestBody.erase(0, length);
-      }
+		requestBody = requestBody.erase(0, pos);
 
-      requests.push_back(Request(method, path, requestHeaders, body));
+		RequestStatus requestStatus = READY;
+
+		if (Request::hasBodyLength(requestHeaders)) {
+		  size_t length = Request::getLengthFromHeaders(requestHeaders);
+		  body = requestBody.substr(0, length);
+		  requestBody = requestBody.erase(0, length);
+		  if (body.length() < length) {
+		  	requestStatus = WAITING_BODY;
+		  }
+		}
+		requests.push_back(Request(method, path, requestHeaders, body, requestStatus));
     }
-    status = WRITE;
   }
 
   void readRequestChunk() {
@@ -117,7 +137,6 @@ class Client {
       // todo if we are here, we hadn't read anything
       //  and no responses are pending
       close(fd);
-      status = CLOSED;
       return;
     }
     buf[bytesRead] = 0;
@@ -125,10 +144,21 @@ class Client {
     LOGGER.debug(std::string(buf));
   }
 
+  bool hasRequestWaitingBody() const {
+	return !requests.empty() && requests.back().getStatus() == WAITING_BODY;
+  }
+
  public:
+  bool isReadyToWrite() const {
+	return requests.size() > 1 || (requests.size() == 1 && requests.front().getStatus() == READY);
+  }
+
   void processReading() {
     readRequestChunk();
-    if (containsRequestEnd() || status == WAITING_BODY) {
+    if (hasRequestWaitingBody()) {
+      appendBodyToCurrentRequest();
+    }
+    if (containsRequestEnd()) {
       parseRequests();
     }
   }
@@ -137,18 +167,14 @@ class Client {
     return requests;
   }
 
-  void sendResponse(const Response &response) {
-
+  ClientStatus getClientStatus() const {
+    return clientStatus;
   }
 
-  ClientStatus getStatus() const {
-    return status;
+  void setClientStatus(ClientStatus client_status) {
+    clientStatus = client_status;
   }
-  void setStatus(ClientStatus status) {
-    this->status = status;
-  }
-
 };
 
+Logger Client::LOGGER(Logger::DEBUG);
 const char *Client::REQUEST_END = "\r\n\r\n";
-

@@ -1,6 +1,7 @@
 #pragma once
 #include "Logger.h"
 #include "Server.h"
+#include "ConfigReader.h"
 
 #include "SelectException.h"
 #include "BadListenerFdException.h"
@@ -27,50 +28,68 @@ class WebServer {
   static const int PORT_DEFAULT = 8080;
 
  private:
-  Logger LOGGER;
+  static Logger LOGGER;
   std::vector<Server> servers;
 
  public:
   WebServer() {}
-  ~WebServer() {}
-  // todo coplien
+  virtual ~WebServer() {}
+
+  WebServer(const WebServer &server) {
+    operator=(server);
+  }
+
+  WebServer &operator=(const WebServer &server) {
+    this->servers = server.servers;
+    return *this;
+  }
 
  private:
   void routine() {
-	while (true) {
-	  std::vector<Server>::iterator server = servers.begin();
-	  while (server != servers.end()) {
-		try {
-		  server->processSelect();
-		  ++server;
-		} catch (const RuntimeWebServException &e) {
-		  LOGGER.error(e.what());
-		  ++server;
-		} catch (const FatalWebServException &e) {
-		  server = servers.erase(server);
-		}
-	  }
-	}
+    while (true) {
+      std::vector<Server>::iterator server = servers.begin();
+      while (server != servers.end()) {
+        try {
+          server->processSelect();
+          ++server;
+        } catch (const RuntimeWebServException &e) {
+          LOGGER.error(e.what());
+          ++server;
+        } catch (const FatalWebServException &e) {
+          server = servers.erase(server);
+        }
+      }
+    }
   }
 
  public:
-  void parseConfig() {
-	// todo stuff
+  void parseConfig(int ac, char *av[]) {
+    if (ac == 1) {
+      ConfigReader conf;
+      conf.printData();
+      this->servers = conf.getServers();
+    } else {
+      ConfigReader conf(av[1]);
+      conf.readConfig();
+      conf.printData();
+      this->servers = conf.getServers();
+    }
   }
 
   void run() {
-	servers.push_back(Server(8080));
-	std::vector<Server>::iterator server = servers.begin();
-	while (server != servers.end()) {
-	  try {
-		server->run();
-		++server;
-	  } catch (const FatalWebServException &e) {
-		LOGGER.error(e.what());
-		server = servers.erase(server);
-	  }
-	}
+    std::vector<Server>::iterator server = servers.begin();
+    while (server != servers.end()) {
+      try {
+        server->run();
+        ++server;
+      } catch (const FatalWebServException &e) {
+        LOGGER.error(e.what());
+        server = servers.erase(server);
+      }
+    }
 
-	routine();
+    routine();
   }
 };
+
+Logger WebServer::LOGGER(Logger::DEBUG);
