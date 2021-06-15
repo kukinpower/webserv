@@ -4,7 +4,7 @@
 #include "FatalWebServException.h"
 #include "Logger.h"
 #include "Client.h"
-#include "Location.hpp"
+#include "Location.h"
 #include "Server.hpp"
 #include "Request.h"
 
