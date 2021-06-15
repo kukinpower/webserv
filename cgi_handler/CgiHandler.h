@@ -6,6 +6,7 @@
 #include "Client.h"
 #include "Location.hpp"
 #include "Server.hpp"
+#include "Request.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -48,7 +49,7 @@ class CgiHandler {
     env[CONTENT_LENGTH] = "0";
     env[CONTENT_TYPE] = "text/html";
     env[GATEWAY_INTERFACE] = "CGI/1.1";
-    env[PATH_INFO] = "/Users/ilya/Desktop/a.out";
+    env[PATH_INFO] = "/Users/ilya/Desktop/a.out?var1=val1&var2=val2";
     env[PATH_TRANSLATED] = "/Users/ilya/Desktop/a.out";
     env[QUERY_STRING] = "";
     env[REDIRECT_STATUS] = "200";
@@ -63,14 +64,25 @@ class CgiHandler {
     env[SERVER_PORT] = "8080";
     env[SERVER_PROTOCOL] = "HTTP/1.1";
     env[SERVER_SOFTWARE] = "WebServ/42.0";
+    std::string path = "/Users/ilya/Desktop/a.out?var1=val1&var2=val2";
+    std::cerr << "pathQS: " << path << std::endl;
+    std::string queryString = _extractQueryString(path);
+    std::cerr << "path: " << path << std::endl;
+    std::cerr << "QS: " << queryString << std::endl;
+    std::string extension = _extractExtension(path); //NEVER USED
+    std::cerr << "extension: " << extension << std::endl;
   }
 
 
 
-  CgiHandler(const Request &request, const Location &location) : body(request.getBody()) {
-//    std::string literalPort = _toLiteral(Server.getPort());
-//    env[SERVER_PORT] = literalPort;
-//    env[REMOTEaddr] = literalPort;
+  CgiHandler(const Request &request, const Server &server) : body(request.getBody()) {
+    std::string path = request.getPath();
+    env[REQUEST_URI] = path; //PATH+QUERY_STRING
+    std::string queryString = _extractQueryString(path);
+    std::string extension = _extractExtension(path); //NEVER USED
+    std::string literalPort = _toLiteral(server.getPort());
+    env[SERVER_PORT] = literalPort;
+    env[REMOTEaddr] = literalPort;
     std::string literalBodySize = _toLiteral(body.size());
     env[CONTENT_LENGTH] = literalBodySize;
     if (request.getHeaders().find("Authorization") != request.getHeaders().end()) {
@@ -90,13 +102,13 @@ class CgiHandler {
       env[CONTENT_TYPE] = "";
     }
     env[GATEWAY_INTERFACE] = "CGI/1.1";
-    env[PATH_INFO] = request.getPath();
-    env[PATH_TRANSLATED] = request.getPath();
-    env[QUERY_STRING] = "!"; //QUERY_STRING
+    env[PATH_INFO] = path;
+    env[PATH_TRANSLATED] = path;
+    env[QUERY_STRING] = queryString;
     env[REDIRECT_STATUS] = "200"; //for php-cgi
-    env[REQUEST_URI] = "!request.getPath() + ..."; //QUERY_STRING
 
-    Method m = request.getMethod();
+
+    HttpMethod m = request.getMethod();
     if (m == POST)
       env[REQUEST_METHOD] = "POST";
     else if (m == GET)
@@ -104,9 +116,9 @@ class CgiHandler {
     else
       env[REQUEST_METHOD] = "DELETE";
 
-    env[SCRIPT_NAME] = location.getCgiPath();
-    env[SCRIPT_FILENAME] = location.getCgiPath();
-    env[SERVER_NAME] = "!Server.getServerName()";
+//    env[SCRIPT_NAME] = location.getCgiPath();
+//    env[SCRIPT_FILENAME] = location.getCgiPath();
+    env[SERVER_NAME] = server.getServerName();
     env[SERVER_PROTOCOL] = "HTTP/1.1";
     env[SERVER_SOFTWARE] = "WebServ/42.0";
 
@@ -197,6 +209,20 @@ class CgiHandler {
     std::stringstream ss;
     ss << num;
     return ss.str();
+  }
+
+  std::string _extractQueryString(std::string &path) {
+    size_t delimiter = path.find('?');
+    if (delimiter == std::string::npos)
+      return "";
+    std::string queryString = path.substr(delimiter);
+    path = path.substr(0, delimiter);
+    return queryString;
+  }
+
+  std::string _extractExtension(const std::string &path) {
+    size_t delimiter = path.find_last_of(".");
+    return path.substr(delimiter);
   }
 
   std::map<std::string, std::string> env;

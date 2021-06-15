@@ -9,6 +9,7 @@
 
 #include "FatalWebServException.h"
 #include "FileNotFoundException.h"
+#include "CgiHandler.h"
 
 #include <map>
 #include <fstream>
@@ -169,7 +170,6 @@ class Response {
     const Headers &requestHeaders = request.getHeaders();
 
     if (!Request::isConnectionClose(requestHeaders)) {
-
     }
   }
 

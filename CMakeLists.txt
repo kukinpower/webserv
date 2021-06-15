@@ -11,9 +11,13 @@ include_directories(exception)
 include_directories(request)
 include_directories(response)
 include_directories(server)
+include_directories(cgi_handler)
 
 add_executable(webserv
-        main.cpp)
+        cgi_handler/test_cgi.cpp)
+
+#add_executable(webserv
+#        main.cpp)
 
 set_target_properties(webserv PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY_DEBUG ../
