@@ -1,11 +1,10 @@
 #pragma once
 
+#include "Server.h"
 #include "WebServException.h"
 #include "FatalWebServException.h"
 #include "Logger.h"
-#include "Client.h"
 #include "Location.h"
-#include "Server.hpp"
 #include "Request.h"
 
 #include <unistd.h>
