@@ -17,6 +17,8 @@ class Location {
   std::vector<std::string> cgiExt;
   std::string cgiPath;
   std::string errorPage;
+  std::string redirectFrom;
+  std::string redirectTo;
 
  public:
   Location(void) {
@@ -34,10 +36,12 @@ class Location {
 
   Location(const std::string& url, const std::string& root, const std::vector<std::string> &allowedMethodsVector,
            bool autoIndex, const std::vector<std::string>& index, const std::string& uploadPath,
-           const std::vector<std::string>& cgiExt, const std::string& cgiPath, const std::string& errorPage)
+           const std::vector<std::string>& cgiExt, const std::string& cgiPath, const std::string& errorPage,
+           const std::string& redirectFrom, const std::string& redirectTo)
       : url(url), root(root), allowedMethods(vectorToSet(allowedMethodsVector)),
 		autoIndex(autoIndex), index(index), uploadPath(uploadPath),
-		cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
+		cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage),
+		redirectFrom(redirectFrom), redirectTo(redirectTo){
   }
 
   ~Location() {
@@ -149,5 +153,13 @@ class Location {
 
   bool getAutoIndex() const {
     return autoIndex;
+  }
+
+  std::string getRedirectFrom() const {
+    return this->redirectFrom;
+  }
+
+  std::string getRedirectTo() const {
+    return this->redirectTo;
   }
 };
