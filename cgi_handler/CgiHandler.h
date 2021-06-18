@@ -89,8 +89,8 @@ class CgiHandler {
 
 
   CgiHandler(const Request &request, const ServerStruct &server,
-             std::vector<Location>::const_iterator requestLocation,
-             const std::string &queryString, const std::string &path) : body(request.getBody()) {
+             const std::string &queryString, const std::string &path,
+             const std::string &interpretor) : body(request.getBody()) {
     env[REQUEST_URI] = path;
     std::string literalPort = _toLiteral(server.getPort());
     env[SERVER_PORT] = literalPort;
@@ -128,8 +128,8 @@ class CgiHandler {
     else
       env[REQUEST_METHOD] = "DELETE";
 
-    env[SCRIPT_NAME] = requestLocation->getCgiPath();//?
-    env[SCRIPT_FILENAME] = requestLocation->getCgiPath();//?
+    env[SCRIPT_NAME] = interpretor;//?
+    env[SCRIPT_FILENAME] = interpretor;//?
     env[SERVER_NAME] = server.getServerName();
     env[SERVER_PROTOCOL] = "HTTP/1.1";
     env[SERVER_SOFTWARE] = "WebServ/42.0";
@@ -160,8 +160,9 @@ class CgiHandler {
     lseek(fdInput, 0, SEEK_SET);
     std::string dynamicPage;
     const char **args = new const char*[2];
-    args[0] = script.c_str();
-    args[1] = NULL;
+    args[0] = interpreter.c_str();
+    args[1] = script.c_str();;
+    args[2] = NULL;
 
     pid_t pid = fork();
     if (pid == -1)
@@ -169,8 +170,8 @@ class CgiHandler {
     else if (pid == 0) {
       dup2(fdInput, STDIN);
       dup2(fdOutput, STDOUT);
-      execve(script.c_str(), const_cast<char*const*>(args), envVars); //python3 test.py
-      LOGGER.error("Could not execute script in CgiHandler");
+      execve(interpreter.c_str(), const_cast<char*const*>(args), envVars); //python3 test.py
+      LOGGER.error("Could not execute script in CgiHandler\n" + interpreter + '\n' + script);
       responseStatus = BAD_REQUEST;
       exit(0);
     } else {

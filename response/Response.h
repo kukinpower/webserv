@@ -174,6 +174,7 @@ class Response {
 
     if (!Request::isConnectionClose(requestHeaders)) {
       std::string path = requestLocation->substitutePath(request.getPath());
+      std::string interpreter = requestLocation->substitutePathCgi(requestLocation->getCgiPath());
       std::ifstream fileStream(path);
       if (fileStream.fail()) {
         throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
@@ -187,8 +188,8 @@ class Response {
         std::string extension = findExtension(path);
         if (find(requestLocation->getCgiExt().begin(), requestLocation->getCgiExt().end(), extension) == requestLocation->getCgiExt().end())
           throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
-        CgiHandler cgi(request, serverStruct, requestLocation, queryString, path);
-        cgi.runScript(path, requestLocation->getCgiPath(), responseStatus);
+        CgiHandler cgi(request, serverStruct, queryString, path, interpreter);
+        responseBody = cgi.runScript(path, interpreter, responseStatus);
       } else {
         if (requestLocation->isAutoIndex()) {
           responseBody = generateAutoIndex(path);
