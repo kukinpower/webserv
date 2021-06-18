@@ -175,6 +175,7 @@ class Response {
     if (!Request::isConnectionClose(requestHeaders)) {
       std::string path = requestLocation->substitutePath(request.getPath());
       std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
+      std::string queryString = extractQueryString(path);
       std::ifstream fileStream(path);
       if (fileStream.fail()) {
         throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
@@ -184,7 +185,6 @@ class Response {
           throw MethodNotAllowed(Logger::toString(WebServException::METHOD_NOT_ALLOWED) + " '" + path + "'"); //405
         if (requestLocation->getCgiPath().empty() || requestLocation->getCgiExt().empty())  //validate path?
           throw CgiParamsNotSpecified(Logger::toString(WebServException::CGI_PARAMS_NOT_SPECIFIED) + " '" + path + "'");
-        std::string queryString = extractQueryString(path);
         std::string extension = findExtension(path);
         if (find(requestLocation->getCgiExt().begin(), requestLocation->getCgiExt().end(), extension) == requestLocation->getCgiExt().end())
           throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
@@ -218,17 +218,18 @@ class Response {
 
         if (location->matches(request.getPath()) && location->isMethodAllowed(request.getMethod())) {
           requestLocation = location;
-          if (request.getMethod() == GET) {
-            doGet();
-          } else if (request.getMethod() == POST) {
-            doPost();
-          } else if (request.getMethod() == DELETE) {
-            doDelete();
-          } else {
-            throw RuntimeWebServException("Can't handle method like this: " + Logger::toString(request.getMethod()));
-          }
-          break;
+          if (location->getUrl() != "/")
+            break;
         }
+      }
+      if (request.getMethod() == GET) {
+        doGet();
+      } else if (request.getMethod() == POST) {
+        doPost();
+      } else if (request.getMethod() == DELETE) {
+        doDelete();
+      } else {
+        throw RuntimeWebServException("Can't handle method like this: " + Logger::toString(request.getMethod()));
       }
     } catch (const FileNotFoundException &e) {
       LOGGER.debug(e.what());
