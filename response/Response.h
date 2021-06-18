@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <stdio.h>
 
 class Server;
 
@@ -173,8 +174,33 @@ class Response {
     }
   }
 
-  void doDelete() {
+  static std::string getTimeStamp() {
+    char buf[50];
+    time_t now = time(0);
+    struct tm tm = *gmtime(&now);
+    strftime(buf, sizeof buf, "%a, %d %b %Y %H:%M:%S %Z", &tm);
+    std::string tmp(buf);
+    return (tmp);
+  }
 
+  void doDelete() {
+    std::string path = requestLocation->substitutePath(request.getPath());
+    std::ifstream infile(path);
+    if (infile.good() && remove(path.c_str()) == 0) {
+      responseBody = "HTTP/1.1 200 OK\n"
+                     "Date: ";
+      responseBody += getTimeStamp();
+      responseBody += "\n"
+                      "<html>\n"
+                      "  <body>\n"
+                      "    <h1>File deleted.</h1>\n"
+                      "  </body>\n"
+                      "</html>";
+      infile.close();
+      responseStatus = OK; // unstoppable "Select error" here
+    } else {
+      responseStatus = NOT_FOUND; // hangs here, status showing only after process stops
+    }
   }
 
  public:
