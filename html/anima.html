@@ -1,0 +1,43 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .animation {
+            width: 150px;
+            height: 150px;
+            background-color: #FAC5DE;
+
+            animation: transformation 3s infinite alternate cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: background-color 500ms linear;
+			transition: height 500ms linear;
+			transition: width 500ms linear;
+        }
+
+        .animation:hover {
+            background-color: #71C8E2;
+			width: 200px;
+			height: 200px;
+        }
+
+        @keyframes transformation {
+            0% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(100px);
+            }
+            50% {
+                transform: translateX(100px) translateY(100%);
+            }
+            75%, 100% {
+                transform: translateX(100px) translateY(100%) scale(2) rotate(145deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="animation"></div>
+</body>
+</html>

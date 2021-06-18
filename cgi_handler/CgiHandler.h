@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Server.h"
+#include "ServerStruct.h"
 #include "WebServException.h"
 #include "FatalWebServException.h"
 #include "Logger.h"
@@ -11,6 +11,20 @@
 #include <stdio.h>
 
 #include <map>
+
+static std::string extractQueryString(std::string &path) {
+  size_t delimiter = path.find('?');
+  if (delimiter == std::string::npos)
+    return "";
+  std::string queryString = path.substr(delimiter + 1);
+  path = path.substr(0, delimiter);
+  return queryString;
+}
+
+static std::string findExtension(const std::string &path) {
+  size_t delimiter = path.find_last_of(".");
+  return path.substr(delimiter);
+}
 
 class CgiHandler {
  public:
@@ -65,20 +79,19 @@ class CgiHandler {
     env[SERVER_SOFTWARE] = "WebServ/42.0";
     std::string path = "/Users/ilya/Desktop/a.out?var1=val1&var2=val2";
     std::cerr << "pathQS: " << path << std::endl;
-    std::string queryString = _extractQueryString(path);
+    std::string queryString = extractQueryString(path);
     std::cerr << "path: " << path << std::endl;
     std::cerr << "QS: " << queryString << std::endl;
-    std::string extension = _extractExtension(path); //NEVER USED
+    std::string extension = findExtension(path); //NEVER USED
     std::cerr << "extension: " << extension << std::endl;
   }
 
 
 
-  CgiHandler(const Request &request, const Server &server) : body(request.getBody()) {
-    std::string path = request.getPath();
-    env[REQUEST_URI] = path; //PATH+QUERY_STRING
-    std::string queryString = _extractQueryString(path);
-    std::string extension = _extractExtension(path); //NEVER USED
+  CgiHandler(const Request &request, const ServerStruct &server,
+             std::vector<Location>::const_iterator requestLocation,
+             const std::string &queryString, const std::string &path) : body(request.getBody()) {
+    env[REQUEST_URI] = path;
     std::string literalPort = _toLiteral(server.getPort());
     env[SERVER_PORT] = literalPort;
     env[REMOTEaddr] = literalPort;
@@ -115,8 +128,8 @@ class CgiHandler {
     else
       env[REQUEST_METHOD] = "DELETE";
 
-//    env[SCRIPT_NAME] = location.getCgiPath();
-//    env[SCRIPT_FILENAME] = location.getCgiPath();
+    env[SCRIPT_NAME] = requestLocation->getCgiPath();//?
+    env[SCRIPT_FILENAME] = requestLocation->getCgiPath();//?
     env[SERVER_NAME] = server.getServerName();
     env[SERVER_PROTOCOL] = "HTTP/1.1";
     env[SERVER_SOFTWARE] = "WebServ/42.0";
@@ -124,7 +137,9 @@ class CgiHandler {
   }
   virtual ~CgiHandler() {}
 
-  std::string runScript(const std::string &script) {
+  std::string runScript(const std::string &script, const std::string &interpreter, HttpStatus &responseStatus) {
+    responseStatus = OK;
+
     char **envVars;
     try {
       envVars = _getEnv();
@@ -142,7 +157,7 @@ class CgiHandler {
     int fdInput = fileno(fsInput);
     int fdOutput = fileno(fsOutput);
     write(fdInput, body.c_str(), body.size());
-    lseek(fdInput, 0, SEEK_SET); //what's the point?
+    lseek(fdInput, 0, SEEK_SET);
     std::string dynamicPage;
     const char **args = new const char*[2];
     args[0] = script.c_str();
@@ -154,13 +169,14 @@ class CgiHandler {
     else if (pid == 0) {
       dup2(fdInput, STDIN);
       dup2(fdOutput, STDOUT);
-      execve(script.c_str(), const_cast<char*const*>(args), envVars);
+      execve(script.c_str(), const_cast<char*const*>(args), envVars); //python3 test.py
       LOGGER.error("Could not execute script in CgiHandler");
+      responseStatus = BAD_REQUEST;
       exit(0);
     } else {
       waitpid(-1, NULL, 0);
       delete[] args;
-      lseek(fdOutput, 0, SEEK_SET); //what's the point?
+      lseek(fdOutput, 0, SEEK_SET);
       char buf[BUFFER_SIZE];
       for (int hasRead = 1; hasRead > 0;) {
         bzero(buf, BUFFER_SIZE);
@@ -180,7 +196,6 @@ class CgiHandler {
       for (int i = 0; envVars[i]; ++i)
         delete[] envVars[i];
       delete[] envVars;
-
       return dynamicPage;
     }
   }
@@ -208,20 +223,6 @@ class CgiHandler {
     std::stringstream ss;
     ss << num;
     return ss.str();
-  }
-
-  std::string _extractQueryString(std::string &path) {
-    size_t delimiter = path.find('?');
-    if (delimiter == std::string::npos)
-      return "";
-    std::string queryString = path.substr(delimiter);
-    path = path.substr(0, delimiter);
-    return queryString;
-  }
-
-  std::string _extractExtension(const std::string &path) {
-    size_t delimiter = path.find_last_of(".");
-    return path.substr(delimiter);
   }
 
   std::map<std::string, std::string> env;

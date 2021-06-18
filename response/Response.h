@@ -9,6 +9,9 @@
 
 #include "FatalWebServException.h"
 #include "FileNotFoundException.h"
+#include "MethodNotAllowed.h"
+#include "ExtensionNotSupported.h"
+#include "CgiParamsNotSpecified.h"
 #include "CgiHandler.h"
 
 #include <map>
@@ -150,7 +153,7 @@ class Response {
       if (requestLocation->isAutoIndex()) {
         responseBody = generateAutoIndex(path);
       } else {
-        std::ifstream indexFileStream(path + "index.html");
+        std::ifstream indexFileStream(path + "index.html"); //нужно разные страницы загружать (см. в конфиге index)
         if (!indexFileStream.fail()) {
           responseBody = getDocumentContent(indexFileStream);
         } else {
@@ -170,6 +173,34 @@ class Response {
     const Headers &requestHeaders = request.getHeaders();
 
     if (!Request::isConnectionClose(requestHeaders)) {
+      std::string path = requestLocation->substitutePath(request.getPath());
+      std::ifstream fileStream(path);
+      if (fileStream.fail()) {
+        throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
+      }
+      if (!isDirectory(path.c_str())) {
+        if (!requestLocation->isMethodAllowed(POST))
+          throw MethodNotAllowed(Logger::toString(WebServException::METHOD_NOT_ALLOWED) + " '" + path + "'"); //405
+        if (requestLocation->getCgiPath().empty() || requestLocation->getCgiExt().empty())  //validate path?
+          throw CgiParamsNotSpecified(Logger::toString(WebServException::CGI_PARAMS_NOT_SPECIFIED) + " '" + path + "'");
+        std::string queryString = extractQueryString(path);
+        std::string extension = findExtension(path);
+        if (find(requestLocation->getCgiExt().begin(), requestLocation->getCgiExt().end(), extension) == requestLocation->getCgiExt().end())
+          throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
+        CgiHandler cgi(request, serverStruct, requestLocation, queryString, path);
+        cgi.runScript(path, requestLocation->getCgiPath(), responseStatus);
+      } else {
+        if (requestLocation->isAutoIndex()) {
+          responseBody = generateAutoIndex(path);
+        } else {
+          std::ifstream indexFileStream(path + "index.html"); //нужно разные страницы загружать (см. в конфиге index)
+          if (!indexFileStream.fail()) {
+            responseBody = getDocumentContent(indexFileStream);
+          } else {
+            responseBody = "";
+          }
+        }
+      }
     }
   }
 
