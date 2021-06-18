@@ -174,7 +174,7 @@ class Response {
 
     if (!Request::isConnectionClose(requestHeaders)) {
       std::string path = requestLocation->substitutePath(request.getPath());
-      std::string interpreter = requestLocation->substitutePathCgi(requestLocation->getCgiPath());
+      std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
       std::ifstream fileStream(path);
       if (fileStream.fail()) {
         throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404

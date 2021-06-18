@@ -1,0 +1,11 @@
+print("<html>")
+print("<head>")
+print("<title>Hello World - First CGI Program</title>")
+print("</head>")
+print("<body>")
+i = 0
+while i < 3:
+    i += 1;
+    print("<h1>BLA-BLA-BLA...</h1>")
+print("</body>")
+print("</html>")

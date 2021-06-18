@@ -57,11 +57,8 @@ class Location {
     throw RuntimeWebServException("Bad path string provided: " + path + ". Not matches with url: " + url);
   }
 
-  std::string substitutePathCgi(const std::string &path) const {
-    if (path.find(url) != std::string::npos) {
-      return root + '/' + path.substr(url.length() - 1);
-    }
-    throw RuntimeWebServException("Bad path string provided: " + path + ". Not matches with url: " + url);
+  std::string getFullCgiPath(const std::string &path) const {
+      return root + '/' + path;
   }
 
   bool isMethodAllowed(HttpMethod method) const {
