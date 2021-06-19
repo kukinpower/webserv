@@ -43,6 +43,7 @@ class WebServException : public std::exception {
   static const char *MAX_REQ_SIZE_EXCEEDED;
   static const char *CGI_PARAMS_NOT_SPECIFIED;
   static const char *EXTENSION_NOT_SUPPORTED;
+  static const char *CLIENT_NOT_FOUND;
 };
 
 const char *WebServException::FATAL_ERROR = "FATAL ERROR";
@@ -62,3 +63,4 @@ const char *WebServException::METHOD_NOT_ALLOWED = "Method not allowed";
 const char *WebServException::MAX_REQ_SIZE_EXCEEDED = "Maximum request size body exceeded";
 const char *WebServException::CGI_PARAMS_NOT_SPECIFIED = "Method not allowed";
 const char *WebServException::EXTENSION_NOT_SUPPORTED = "Extension not supported";
+const char *WebServException::CLIENT_NOT_FOUND = "No such client";

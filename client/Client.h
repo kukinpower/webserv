@@ -43,12 +43,21 @@ class Client {
   Client(const Client &request) {
     operator=(request);
   }
+
   Client &operator=(const Client &request) {
     this->fd = request.fd;
     this->requestBody = request.requestBody;
     this->requests = request.requests;
     this->clientStatus = request.clientStatus;
     return *this;
+  }
+
+  bool operator <(const Client &b) const {
+    return this->fd < b.fd;
+  }
+
+  bool operator <(Client &b) {
+    return this->fd < b.fd;
   }
 
  public:
@@ -134,8 +143,7 @@ class Client {
       throw ReadException();
     }
     if (bytesRead == 0) {
-      // todo if we are here, we hadn't read anything
-      //  and no responses are pending
+      clientStatus = CLOSED;
       close(fd);
       return;
     }
