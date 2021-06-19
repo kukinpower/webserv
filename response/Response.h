@@ -6,13 +6,14 @@
 #include "HttpStatusWrapper.h"
 #include "Request.h"
 #include "ServerStruct.h"
+#include "CgiHandler.h"
 
 #include "FatalWebServException.h"
 #include "FileNotFoundException.h"
 #include "MethodNotAllowed.h"
 #include "ExtensionNotSupported.h"
 #include "CgiParamsNotSpecified.h"
-#include "CgiHandler.h"
+#include "BadRequestException.h"
 
 #include <map>
 #include <fstream>
@@ -21,6 +22,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 class Server;
 
@@ -33,6 +36,7 @@ class Response {
  private:
   static const HttpStatuses STATUSES;
   static const MimeTypes MIME;
+  static const int MAX_FILESIZE = 10485760; // 10mb
 
   static Logger LOGGER;
 
@@ -94,9 +98,7 @@ class Response {
   std::string generateHeaders() {
     std::vector<std::string> responseHeaders;
 
-    if (!isErrorStatus(responseStatus)) {
-      headers.insert(std::make_pair("Content-Length", Logger::toString(responseBody.length())));
-    }
+    headers.insert(std::make_pair("Content-Length", Logger::toString(responseBody.length())));
 
     //todo server name
     headers.insert(std::make_pair("Server", serverStruct.getServerName()));
@@ -138,13 +140,34 @@ class Response {
     throw RuntimeWebServException("Couldn't open directory by path: " + path);
   }
 
+  bool fileSizeIsBiggerThanLimit(const std::string &path) {
+    struct stat fileStat;
+    stat(path.c_str(), &fileStat);
+    return fileStat.st_size > MAX_FILESIZE;
+  }
+
   void doGet() {
     const Headers &requestHeaders = request.getHeaders();
 
     std::string path = requestLocation->substitutePath(request.getPath());
+
     std::ifstream fileStream(path);
     if (fileStream.fail()) {
-      throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'");
+      throw FileNotFoundException(StringBuilder()
+                                        .append(WebServException::FILE_NOT_FOUND)
+                                        .append(" \'")
+                                        .append(path)
+                                        .append("\'")
+                                        .toString());
+    }
+
+    if (fileSizeIsBiggerThanLimit(path)) {
+      throw BadRequestException(StringBuilder()
+                                        .append(WebServException::BAD_REQUEST)
+                                        .append(" \'")
+                                        .append(path)
+                                        .append("\' filesize is over 10mb. Can't handle this")
+                                        .toString());
     }
 
     if (!isDirectory(path.c_str())) {
@@ -164,12 +187,18 @@ class Response {
     responseStatus = OK;
   }
 
-  static std::string getDocumentContent(std::ifstream &fileStream) {
-    std::istreambuf_iterator<char> eos;
-    return std::string(std::istreambuf_iterator<char>(fileStream), eos);
+  std::string getDocumentContent(std::ifstream &fileStream) {
+    fileStream.seekg(0,std::ios::end);
+    std::streampos length = fileStream.tellg();
+    fileStream.seekg(0,std::ios::beg);
+    std::vector<char> buffer(length);
+    fileStream.read(&buffer[0],length);
+    return std::string(buffer.begin(), buffer.end());
+//    std::istreambuf_iterator<char> eos;
+//    return std::string(std::istreambuf_iterator<char>(fileStream), eos);
   }
 
-  static std::string getDocumentContentByPath(const std::string &path) {
+  std::string getDocumentContentByPath(const std::string &path) {
     std::ifstream fileStream(path);
     if (fileStream.fail()) {
       throw RuntimeWebServException();
@@ -247,6 +276,8 @@ class Response {
       responseBody = getDocumentContentByPath(requestLocation->getErrorPage());
     } else if (responseStatus == INTERNAL_SERVER_ERROR) {
       responseBody = getDocumentContentByPath("./html/500.html"); //todo no hardcode
+    } else if (responseStatus == BAD_REQUEST) {
+      responseBody = getDocumentContentByPath("./html/400.html"); //todo no hardcode
     }
   }
 
@@ -275,7 +306,11 @@ class Response {
     } catch (const FileNotFoundException &e) {
       LOGGER.debug(e.what());
       responseStatus = NOT_FOUND;
+    } catch (const BadRequestException &e) {
+      LOGGER.debug(e.what());
+      responseStatus = BAD_REQUEST;
     } catch (const RuntimeWebServException &e) {
+      LOGGER.debug(e.what());
       responseStatus = INTERNAL_SERVER_ERROR; //500
     }
 

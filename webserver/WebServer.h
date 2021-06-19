@@ -27,6 +27,7 @@ class WebServer {
   static const int BUF_SIZE = 256;
   static const int PORT_DEFAULT = 8080;
   static const int SERVER_TIMEOUT = 22000;
+  static const int SEND_CHUNK_SIZE = 256;
 
  private:
   static Logger LOGGER;
@@ -77,89 +78,116 @@ class WebServer {
 
   void routine() {
     while (true) {
-      std::map<Client *, Server *> clientsToServersMap;
-      std::map<int, Client *> clientFdsMap;
-      std::map<int, Server *> listenerFdsMap;
-      for (std::vector<Server>::iterator server = servers.begin(); server != servers.end(); ++server) {
-        std::vector<Client> &clients = server->getAllClients();
-        for (std::vector<Client>::iterator client = clients.begin(); client != clients.end(); ++client) {
-          clientsToServersMap.insert(std::make_pair(&(*client), &(*server)));
-          clientFdsMap.insert(std::make_pair(client->getFd(), &(*client)));
-        }
-        listenerFdsMap.insert(std::make_pair(server->getListenerFd(), &(*server)));
-      }
-
-      size_t currentFdsCount = clientFdsMap.size() + listenerFdsMap.size();
-      struct pollfd fds[currentFdsCount];
-      memset(&fds, 0, sizeof(fds));
-
-      fillPollFds(fds, listenerFdsMap, clientFdsMap);
-
-      int ret = poll(fds, currentFdsCount, SERVER_TIMEOUT);
-      if (ret == -1) {
-        LOGGER.error(WebServException::POLL_ERROR);
-        int i;
-        std::cin >> i;
-        throw PollException();
-      } else if (ret == 0) {
+      try {
+        std::map<Client *, Server *> clientsToServersMap;
+        std::map<int, Client *> clientFdsMap;
+        std::map<int, Server *> listenerFdsMap;
         for (std::vector<Server>::iterator server = servers.begin(); server != servers.end(); ++server) {
-          server->clearClients();
+          std::vector<Client> &clients = server->getAllClients();
+          for (std::vector<Client>::iterator client = clients.begin(); client != clients.end(); ++client) {
+            clientsToServersMap.insert(std::make_pair(&(*client), &(*server)));
+            clientFdsMap.insert(std::make_pair(client->getFd(), &(*client)));
+          }
+          listenerFdsMap.insert(std::make_pair(server->getListenerFd(), &(*server)));
         }
-        LOGGER.info("Timeout reached. Close all connections");
-      } else {
-        // new connection
-        for (int i = 0; i < currentFdsCount; ++i) {
-          if (clientFdsMap.find(fds[i].fd) != clientFdsMap.end()) {
-            Client *client = clientFdsMap[fds[i].fd];
 
-            if (fds[i].revents & POLLOUT) {
-              for (std::vector<Request>::iterator request = client->getRequests().begin();
-                   request != client->getRequests().end();) {
-                LOGGER.info("Start sending to client: " + Logger::toString(client->getFd()));
+        size_t currentFdsCount = clientFdsMap.size() + listenerFdsMap.size();
+        struct pollfd fds[currentFdsCount];
+        memset(&fds, 0, sizeof(fds));
 
-                Response response(*request, clientsToServersMap[client]->createServerStruct());
+        fillPollFds(fds, listenerFdsMap, clientFdsMap);
 
-                std::string responseBody = response.generateResponse();
-                if (send(client->getFd(), responseBody.c_str(), responseBody.length(), 0) == -1) {
-                  LOGGER.error(StringBuilder()
-                                   .append(WebServException::SEND_ERROR)
-                                   .append(" fd: ")
-                                   .append(client->getFd())
-                                   .append(", response body: ")
-                                   .append(responseBody)
-                                   .toString());
-                  throw SendException();
+        int ret = poll(fds, currentFdsCount, SERVER_TIMEOUT);
+        if (ret == -1) {
+          LOGGER.error(WebServException::POLL_ERROR);
+          int i;
+          std::cin >> i;
+          throw PollException();
+        } else if (ret == 0) {
+          for (std::vector<Server>::iterator server = servers.begin(); server != servers.end(); ++server) {
+            server->clearClients();
+          }
+          LOGGER.info("Timeout reached. Close all connections");
+        } else {
+          for (int i = 0; i < currentFdsCount; ++i) {
+            if (clientFdsMap.find(fds[i].fd) != clientFdsMap.end()) {
+              Client *client = clientFdsMap[fds[i].fd];
+
+              if (fds[i].revents & POLLOUT) {
+                for (std::vector<Request>::iterator request = client->getRequests().begin();
+                     request != client->getRequests().end();) {
+                  LOGGER.info("Start sending to client: " + Logger::toString(client->getFd()));
+
+                  Response response(*request, clientsToServersMap[client]->createServerStruct());
+
+                  std::string responseBody = response.generateResponse();
+                  if (responseBody.length() > SEND_CHUNK_SIZE) {
+                    int bytesWritten = 0;
+                    while (bytesWritten < responseBody.length()) {
+                      size_t sendSize;
+                      if (responseBody.length() - bytesWritten < SEND_CHUNK_SIZE) {
+                        sendSize = responseBody.length() - bytesWritten;
+                      } else {
+                        sendSize = SEND_CHUNK_SIZE;
+                      }
+                      if (send(client->getFd(), responseBody.c_str() + bytesWritten, sendSize, 0) == -1) {
+                        std::cout << errno << std::endl; //todo remove
+                        LOGGER.error(StringBuilder()
+                                         .append(WebServException::SEND_ERROR)
+                                         .append(" fd: ")
+                                         .append(client->getFd())
+                                         .toString());
+                        throw SendException();
+                      }
+                      bytesWritten += sendSize;
+                    }
+                  } else {
+                    if (send(client->getFd(), responseBody.c_str(), responseBody.length(), 0) == -1) {
+                      std::cout << errno << std::endl;
+                      LOGGER.error(StringBuilder()
+                                       .append(WebServException::SEND_ERROR)
+                                       .append(" fd: ")
+                                       .append(client->getFd())
+                                       .toString());
+                      throw SendException();
+                    }
+                  }
+                  if (response.getStatus() == INTERNAL_SERVER_ERROR) {
+                    client->setClientStatus(CLOSED);
+                    break;
+                  }
+                  request = client->getRequests().erase(request);
                 }
-                if (response.getStatus() == INTERNAL_SERVER_ERROR) {
-                  client->setClientStatus(CLOSED);
-                  break;
+              }
+              if (client->getClientStatus() == CLOSED) {
+                clientsToServersMap[client]->eraseClient(*client);
+              }
+              if (fds[i].revents & POLLIN) {
+                try {
+                  client->processReading();
+                } catch (const RuntimeWebServException &e) {
+                  LOGGER.error(e.what());
                 }
-                request = client->getRequests().erase(request);
               }
             }
-            if (client->getClientStatus() == CLOSED) {
-              clientsToServersMap[client]->eraseClient(*client);
-            }
-            if (fds[i].revents & POLLIN) {
+              // new connection
+            else if (fds[i].revents & POLLIN && listenerFdsMap.find(fds[i].fd) != listenerFdsMap.end()) {
+              Server *server = listenerFdsMap[fds[i].fd];
               try {
-                client->processReading();
+                server->acceptConnectionPoll();
+                LOGGER.info("Client connected, fd: " + Logger::toString(server->getAllClients().back().getFd()));
               } catch (const RuntimeWebServException &e) {
                 LOGGER.error(e.what());
-                std::cin >> i;
+              } catch (const FatalWebServException &e) {
+                eraseServer(*server);
               }
-            }
-          } else if (fds[i].revents & POLLIN && listenerFdsMap.find(fds[i].fd) != listenerFdsMap.end()) {
-            Server *server = listenerFdsMap[fds[i].fd];
-            try {
-              server->acceptConnectionPoll();
-              LOGGER.info("Client connected, fd: " + Logger::toString(server->getAllClients().back().getFd()));
-            } catch (const RuntimeWebServException &e) {
-              LOGGER.error(e.what());
-            } catch (const FatalWebServException &e) {
-              eraseServer(*server);
             }
           }
         }
+      } catch (const RuntimeWebServException &e) {
+        std::cout << errno << std::endl;
+        LOGGER.error(e.what());
+        continue;
       }
     }
   }
