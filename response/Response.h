@@ -153,7 +153,7 @@ class Response {
       if (requestLocation->isAutoIndex()) {
         responseBody = generateAutoIndex(path);
       } else {
-        std::ifstream indexFileStream(path + "index.html"); //нужно разные страницы загружать (см. в конфиге index)
+        std::ifstream indexFileStream(path + requestLocation->getFirstExistingIndex(path)); //нужно разные страницы загружать (см. в конфиге index)
         if (!indexFileStream.fail()) {
           responseBody = getDocumentContent(indexFileStream);
         } else {
@@ -186,7 +186,15 @@ class Response {
         if (requestLocation->getCgiPath().empty() || requestLocation->getCgiExt().empty())  //validate path?
           throw CgiParamsNotSpecified(Logger::toString(WebServException::CGI_PARAMS_NOT_SPECIFIED) + " '" + path + "'");
         std::string extension = findExtension(path);
-        if (find(requestLocation->getCgiExt().begin(), requestLocation->getCgiExt().end(), extension) == requestLocation->getCgiExt().end())
+        bool extensionMatches = false;
+        std::vector<std::string> extensions = requestLocation->getCgiExt();
+        for (std::vector<std::string>::iterator it = extensions.begin(); it != extensions.end(); ++it) {
+          if (*it == extension) {
+            extensionMatches = true;
+            break;
+          }
+        }
+        if (!extensionMatches)
           throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
         CgiHandler cgi(request, serverStruct, queryString, path, interpreter);
         responseBody = cgi.runScript(path, interpreter, responseStatus);
@@ -194,7 +202,7 @@ class Response {
         if (requestLocation->isAutoIndex()) {
           responseBody = generateAutoIndex(path);
         } else {
-          std::ifstream indexFileStream(path + "index.html"); //нужно разные страницы загружать (см. в конфиге index)
+          std::ifstream indexFileStream(path + requestLocation->getFirstExistingIndex(path)); //нужно разные страницы загружать (см. в конфиге index)
           if (!indexFileStream.fail()) {
             responseBody = getDocumentContent(indexFileStream);
           } else {
@@ -234,6 +242,10 @@ class Response {
     } catch (const FileNotFoundException &e) {
       LOGGER.debug(e.what());
       responseStatus = NOT_FOUND;
+    } catch (const ExtensionNotSupported &e) {
+      responseStatus = BAD_REQUEST;
+    } catch (const CgiParamsNotSpecified &e) {
+      responseStatus = BAD_REQUEST;
     } catch (const RuntimeWebServException &e) {
       responseStatus = INTERNAL_SERVER_ERROR;
     }
