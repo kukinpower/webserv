@@ -13,6 +13,7 @@
 #include "AcceptException.h"
 #include "ReadException.h"
 #include "SendException.h"
+#include "NoSuchClientException.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -125,24 +126,6 @@ class Server {
   }
 
  public:
-  void fillPollFds(struct pollfd *fds) {
-    fds[0].fd = listenerFd;
-    fds[0].events = POLLIN;
-
-    int i = 1;
-    int writeIndex = 0;
-    for (std::vector<Client>::iterator it = clients.begin();
-         it != clients.end(); ++it) {
-      int fd = it->getFd();
-      fds[i].fd = fd;
-      fds[i].events |= POLLIN;
-      if (it->isReadyToWrite()) {
-        fds[i].fd = fd;
-        fds[i].events |= POLLOUT;
-      }
-      ++i;
-    }
-  }
 
   void acceptConnectionPoll() {
     struct sockaddr addr;
@@ -160,75 +143,11 @@ class Server {
     clients.push_back(newClient);
   }
 
-  void processPoll() {
-    int currentFdsCount = clients.size() + 1;
-    struct pollfd fds[currentFdsCount];
-    memset(&fds, 0, sizeof(fds));
-
-    fillPollFds(fds);
-
-    int ret = poll(fds, currentFdsCount, 60000);
-    if (ret == -1) {
-      LOGGER.error(WebServException::POLL_ERROR);
-      int i;
-      std::cin >> i;
-      throw PollException();
-    } else if (ret == 0) {
-      // timeout, no events
-      // todo
-      //  client->setClientStatus(CLOSED);
-    } else {
-      // new connection
-      if (fds[0].revents & POLLIN) {
-        try {
-          acceptConnectionPoll();
-          LOGGER.info("Client connected, fd: " + Logger::toString(clients.back().getFd()));
-        } catch (const RuntimeWebServException &e) {
-          LOGGER.error(e.what());
-        }
-      }
-      int i = 1;
-      for (std::vector<Client>::iterator client = clients.begin();
-           client != clients.end() && i < currentFdsCount; ++client, ++i) {
-        if (fds[i].revents & POLLOUT) {
-          for (std::vector<Request>::iterator request = client->getRequests().begin();
-               request != client->getRequests().end();) {
-            LOGGER.info("Start sending to client: " + Logger::toString(client->getFd()));
-
-            Response response(*request, createServerStruct());
-            std::string responseBody = response.generateResponse();
-            if (send(client->getFd(), responseBody.c_str(), responseBody.length(), 0) == -1) {
-              LOGGER.error(StringBuilder()
-                               .append(WebServException::SEND_ERROR)
-                               .append(" fd: ")
-                               .append(client->getFd())
-                               .append(", response body: ")
-                               .append(responseBody)
-                               .toString());
-              throw SendException();
-            }
-            if (response.getStatus() == INTERNAL_SERVER_ERROR) {
-              client->setClientStatus(CLOSED);
-              break;
-            }
-            request = client->getRequests().erase(request);
-          }
-        }
-
-        if (client->getClientStatus() == CLOSED) {
-          client = clients.erase(client);
-        }
-
-        if (fds[i].revents & POLLIN) {
-          try {
-            client->processReading();
-          } catch (const RuntimeWebServException &e) {
-            LOGGER.error(e.what());
-            std::cin >> i;
-          }
-        }
-      }
+  void clearClients() {
+    for (std::vector<Client>::iterator client = clients.begin(); client != clients.end(); ++client) {
+      close(client->getFd());
     }
+    clients.clear();
   }
 
   void run() {
@@ -245,7 +164,20 @@ class Server {
     startListening();
   }
 
-  int getSocketFd() const {
+  Client &findClientByFd(int fd) {
+    for (std::vector<Client>::iterator client = clients.begin(); client != clients.end(); ++client) {
+      if (client->getFd() == fd) {
+        return *client;
+      }
+    }
+    throw NoSuchClientException();
+  }
+
+  std::vector<Client> &getAllClients() {
+    return clients;
+  }
+
+  int getListenerFd() const {
     return listenerFd;
   }
 
@@ -273,7 +205,15 @@ class Server {
     return this->locations;
   }
 
- private:
+  void eraseClient(Client &client) {
+    for (std::vector<Client>::iterator pos = clients.begin(); pos != clients.end(); ++pos) {
+      if (pos->getFd() == client.getFd()) {
+        clients.erase(pos);
+        break;
+      }
+    }
+  }
+
   ServerStruct createServerStruct() const {
     return ServerStruct(port, hostName, serverName, maxBodySize, locations);
   }
