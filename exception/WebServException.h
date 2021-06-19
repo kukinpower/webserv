@@ -28,7 +28,7 @@ class WebServException : public std::exception {
  public:
   static const char *FATAL_ERROR;
   static const char *RUNTIME_ERROR;
-  static const char *SELECT_ERROR;
+  static const char *POLL_ERROR;
   static const char *BAD_LISTENER_FD;
   static const char *BIND_ERROR;
   static const char *LISTEN_ERROR;
@@ -50,7 +50,7 @@ const char *WebServException::RUNTIME_ERROR = "RUNTIME ERROR";
 const char *WebServException::BAD_LISTENER_FD = "Bad listener fd error";
 const char *WebServException::BIND_ERROR = "Bind error";
 const char *WebServException::LISTEN_ERROR = "Listen error";
-const char *WebServException::SELECT_ERROR = "Select error";
+const char *WebServException::POLL_ERROR = "Poll error";
 const char *WebServException::ACCEPT_ERROR = "Accept error";
 const char *WebServException::FCNTL_ERROR = "Fcntl error";
 const char *WebServException::READ_ERROR = "Read error";
