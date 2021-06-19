@@ -81,7 +81,7 @@ class Response {
 
   static std::string getContentType(const std::string &path) {
     unsigned long pos;
-    if ((pos = path.rfind(".") != std::string::npos)) {
+    if ((pos = path.find_last_of('.')) != std::string::npos) {
       std::string mimeType = path.substr(pos);
       MimeTypes::const_iterator it;
       if ((it = MIME.find(mimeType)) != MIME.end()) {
@@ -169,6 +169,14 @@ class Response {
     return std::string(std::istreambuf_iterator<char>(fileStream), eos);
   }
 
+  static std::string getDocumentContentByPath(const std::string &path) {
+    std::ifstream fileStream(path);
+    if (fileStream.fail()) {
+      throw RuntimeWebServException();
+    }
+    return getDocumentContent(fileStream);
+  }
+
   void doPost() {
     const Headers &requestHeaders = request.getHeaders();
 
@@ -205,8 +213,41 @@ class Response {
     }
   }
 
-  void doDelete() {
+  static std::string getTimeStamp() {
+    char buf[50];
+    time_t now = time(0);
+    struct tm tm = *gmtime(&now);
+    strftime(buf, sizeof buf, "%a, %d %b %Y %H:%M:%S %Z", &tm);
+    std::string tmp(buf);
+    return (tmp);
+  }
 
+  void doDelete() {
+    std::string path = requestLocation->substitutePath(request.getPath());
+    std::ifstream infile(path);
+    if (infile.good() && (remove(path.c_str())) == 0) {
+      responseBody = "HTTP/1.1 200 OK\n"
+                     "Date: ";
+      responseBody += getTimeStamp();
+      responseBody += "\n"
+                      "<html>\n"
+                      "  <body>\n"
+                      "    <h1>File deleted.</h1>\n"
+                      "  </body>\n"
+                      "</html>";
+      infile.close();
+      responseStatus = OK; // unstoppable "Select error" here
+    } else {
+      responseStatus = NOT_FOUND; // hangs here, status showing only after process stops
+    }
+  }
+
+  void handleStatus() {
+    if (responseStatus == NOT_FOUND) {
+      responseBody = getDocumentContentByPath(requestLocation->getErrorPage());
+    } else if (responseStatus == INTERNAL_SERVER_ERROR) {
+      responseBody = getDocumentContentByPath("./html/500.html"); //todo no hardcode
+    }
   }
 
  public:
@@ -235,8 +276,10 @@ class Response {
       LOGGER.debug(e.what());
       responseStatus = NOT_FOUND;
     } catch (const RuntimeWebServException &e) {
-      responseStatus = INTERNAL_SERVER_ERROR;
+      responseStatus = INTERNAL_SERVER_ERROR; //500
     }
+
+    handleStatus();
 
     return StringBuilder().append(generateHeaders()).append("\r\n\r\n").append(responseBody).toString();
   }
@@ -266,6 +309,7 @@ class Response {
     mime.insert(std::make_pair(".html", "text/html"));
     mime.insert(std::make_pair(".jpg", "image/jpeg"));
     mime.insert(std::make_pair(".jpeg", "image/jpeg"));
+    mime.insert(std::make_pair(".png", "image/png"));
     mime.insert(std::make_pair(".js", "text/javascript"));
     mime.insert(std::make_pair(".txt", "text/plain"));
     mime.insert(std::make_pair(".sh", "application/x-sh"));
