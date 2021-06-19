@@ -13,9 +13,6 @@ include_directories(response)
 include_directories(server)
 include_directories(cgi_handler)
 
-#add_executable(webserv
-#        cgi_handler/test_cgi.cpp)
-
 add_executable(webserv
         main.cpp)
 
