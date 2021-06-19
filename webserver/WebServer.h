@@ -3,7 +3,7 @@
 #include "Server.h"
 #include "ConfigReader.h"
 
-#include "SelectException.h"
+#include "PollException.h"
 #include "BadListenerFdException.h"
 #include "NonBlockException.h"
 #include "BindException.h"
@@ -50,7 +50,7 @@ class WebServer {
       std::vector<Server>::iterator server = servers.begin();
       while (server != servers.end()) {
         try {
-          server->processSelect();
+          server->processPoll();
           ++server;
         } catch (const RuntimeWebServException &e) {
           LOGGER.error(e.what());

@@ -5,7 +5,7 @@
 #include "StringBuilder.h"
 #include "ServerStruct.h"
 
-#include "SelectException.h"
+#include "PollException.h"
 #include "BadListenerFdException.h"
 #include "NonBlockException.h"
 #include "BindException.h"
@@ -21,6 +21,7 @@
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/fcntl.h>
+#include <poll.h>
 
 #include <vector>
 #include <string>
@@ -45,11 +46,11 @@ class Server {
  public:
   // todo?
   Server(int port = 8080,
-		 const std::string &hostName = "localhost",
-		 const std::string &serverName = "champions_server",
-		 const std::string &errorPage = "html/404.html",
-		 int maxBodySize = 100000000,
-		 const std::vector<Location> &locations = std::vector<Location>())
+         const std::string &hostName = "localhost",
+         const std::string &serverName = "champions_server",
+         const std::string &errorPage = "html/404.html",
+         int maxBodySize = 100000000,
+         const std::vector<Location> &locations = std::vector<Location>())
       :
       port(port),
       hostName(hostName),
@@ -88,10 +89,10 @@ class Server {
   static void setNonBlock(int fd) {
     if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0) {
       throw NonBlockException(StringBuilder()
-                                      .append(WebServException::FCNTL_ERROR)
-                                      .append(" on fd: ")
-                                      .append(fd)
-                                      .toString());
+                                  .append(WebServException::FCNTL_ERROR)
+                                  .append(" on fd: ")
+                                  .append(fd)
+                                  .toString());
     }
   }
 
@@ -124,7 +125,26 @@ class Server {
   }
 
  public:
-  int acceptConnection(int maxFd) {
+  void fillPollFds(struct pollfd *fds) {
+    fds[0].fd = listenerFd;
+    fds[0].events = POLLIN;
+
+    int i = 1;
+    int writeIndex = 0;
+    for (std::vector<Client>::iterator it = clients.begin();
+         it != clients.end(); ++it) {
+      int fd = it->getFd();
+      fds[i].fd = fd;
+      fds[i].events |= POLLIN;
+      if (it->isReadyToWrite()) {
+        fds[i].fd = fd;
+        fds[i].events |= POLLOUT;
+      }
+      ++i;
+    }
+  }
+
+  void acceptConnectionPoll() {
     struct sockaddr addr;
     socklen_t socklen;
     int newClientFd;
@@ -136,95 +156,76 @@ class Server {
     // set nonblock
     setNonBlock(newClientFd);
 
-    Client newClient(newClientFd); //todo maybe on heap?
+    Client newClient(newClientFd);
     clients.push_back(newClient);
-    return std::max(maxFd, newClientFd);
   }
 
-  int setFdSets(fd_set *readFds, fd_set *writeFds) {
-    FD_ZERO(readFds);
-    FD_ZERO(writeFds);
-    FD_SET(listenerFd, readFds);
+  void processPoll() {
+    int currentFdsCount = clients.size() + 1;
+    struct pollfd fds[currentFdsCount];
+    memset(&fds, 0, sizeof(fds));
 
-    int maxFd = listenerFd;
-    for (std::vector<Client>::iterator it = clients.begin();
-         it != clients.end(); ++it) {
-      int fd = it->getFd();
-      FD_SET(fd, readFds);
-      if (it->isReadyToWrite()) {
-        FD_SET(fd, writeFds);
-      }
-      maxFd = std::max(maxFd, fd);
-    }
+    fillPollFds(fds);
 
-    return maxFd;
-  }
-
-  // todo maybe fd_set writeFds & timeout
-  void processSelect() {
-    fd_set readFds;
-    fd_set writeFds;
-    int maxFd = setFdSets(&readFds, &writeFds);
-
-	struct timeval time;
-	time.tv_sec = 0;
-	time.tv_usec = 10000;
-
-	int selectRes;
-    if ((selectRes = select(maxFd + 1, &readFds, &writeFds, NULL, &time)) == -1) {
-      LOGGER.error(WebServException::SELECT_ERROR);
-      throw SelectException();
-    }
-    if (selectRes == 0) {
-	  return;
-    }
-
-	// new connection
-    if (FD_ISSET(listenerFd, &readFds)) {
-      try {
-        maxFd = acceptConnection(maxFd);
-		LOGGER.info("Client connected, fd: " + Logger::toString(maxFd));
-      } catch (const RuntimeWebServException &e) {
-        LOGGER.error(e.what());
-      }
-    }
-
-    for (std::vector<Client>::iterator client = clients.begin();
-         client != clients.end(); ++client) {
-      if (FD_ISSET(client->getFd(), &writeFds)) {
-        for (std::vector<Request>::iterator request = client->getRequests().begin();
-             request != client->getRequests().end();) {
-          LOGGER.info("Start sending to client: " + Logger::toString(maxFd));
-
-          Response response(*request, createServerStruct());
-          std::string responseBody = response.generateResponse();
-          if (send(client->getFd(), responseBody.c_str(), responseBody.length(), 0) == -1) {
-			LOGGER.error(StringBuilder()
-			                          .append(WebServException::SEND_ERROR)
-			                          .append(" fd: ")
-			                          .append(client->getFd())
-			                          .append(", response body: ")
-			                          .append(responseBody)
-			                          .toString());
-			throw SendException();
-          }
-          if (response.getStatus() == INTERNAL_SERVER_ERROR) {
-            client->setClientStatus(CLOSED);
-            break;
-          }
-          request = client->getRequests().erase(request);
-        }
-      }
-
-      if (client->getClientStatus() == CLOSED) {
-        client = clients.erase(client);
-      }
-
-      if (FD_ISSET(client->getFd(), &readFds)) {
+    int ret = poll(fds, currentFdsCount, 60000);
+    if (ret == -1) {
+      LOGGER.error(WebServException::POLL_ERROR);
+      int i;
+      std::cin >> i;
+      throw PollException();
+    } else if (ret == 0) {
+      // timeout, no events
+      // todo
+      //  client->setClientStatus(CLOSED);
+    } else {
+      // new connection
+      if (fds[0].revents & POLLIN) {
         try {
-          client->processReading();
+          acceptConnectionPoll();
+          LOGGER.info("Client connected, fd: " + Logger::toString(clients.back().getFd()));
         } catch (const RuntimeWebServException &e) {
           LOGGER.error(e.what());
+        }
+      }
+      int i = 1;
+      for (std::vector<Client>::iterator client = clients.begin();
+           client != clients.end() && i < currentFdsCount; ++client, ++i) {
+        if (fds[i].revents & POLLOUT) {
+          for (std::vector<Request>::iterator request = client->getRequests().begin();
+               request != client->getRequests().end();) {
+            LOGGER.info("Start sending to client: " + Logger::toString(client->getFd()));
+
+            Response response(*request, createServerStruct());
+            std::string responseBody = response.generateResponse();
+            if (send(client->getFd(), responseBody.c_str(), responseBody.length(), 0) == -1) {
+              LOGGER.error(StringBuilder()
+                               .append(WebServException::SEND_ERROR)
+                               .append(" fd: ")
+                               .append(client->getFd())
+                               .append(", response body: ")
+                               .append(responseBody)
+                               .toString());
+              throw SendException();
+            }
+            if (response.getStatus() == INTERNAL_SERVER_ERROR) {
+              client->setClientStatus(CLOSED);
+              break;
+            }
+            request = client->getRequests().erase(request);
+          }
+        }
+
+        if (client->getClientStatus() == CLOSED) {
+          client = clients.erase(client);
+        }
+
+        if (fds[i].revents & POLLIN) {
+          try {
+            client->processReading();
+          } catch (const RuntimeWebServException &e) {
+            LOGGER.error(e.what());
+            std::cin >> i;
+          }
         }
       }
     }
