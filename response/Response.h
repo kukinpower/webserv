@@ -153,7 +153,7 @@ class Response {
       if (requestLocation->isAutoIndex()) {
         responseBody = generateAutoIndex(path);
       } else {
-        std::ifstream indexFileStream(path + requestLocation->getFirstExistingIndex(path)); //нужно разные страницы загружать (см. в конфиге index)
+        std::ifstream indexFileStream(path + requestLocation->getFirstExistingIndex(path));
         if (!indexFileStream.fail()) {
           responseBody = getDocumentContent(indexFileStream);
         } else {
@@ -169,6 +169,17 @@ class Response {
     return std::string(std::istreambuf_iterator<char>(fileStream), eos);
   }
 
+  void postFile(const std::string &path){
+    std::fstream nf(path,std::fstream::in | std::fstream::out | std::fstream::trunc);
+    if (!nf.fail()) {
+      nf << request.getBody();
+      responseStatus = OK;
+    }
+    else
+      responseStatus = INTERNAL_SERVER_ERROR;
+    responseBody = "";
+  }
+
   void doPost() {
     const Headers &requestHeaders = request.getHeaders();
 
@@ -177,8 +188,12 @@ class Response {
       std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
       std::string queryString = extractQueryString(path);
       std::ifstream fileStream(path);
+      std::string directory = path.substr(0, path.rfind('/'));
       if (fileStream.fail()) {
-        throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
+        if (!isDirectory(directory.c_str()))
+          throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
+        postFile(path);
+        return ;
       }
       if (!isDirectory(path.c_str())) {
         if (!requestLocation->isMethodAllowed(POST))
@@ -194,21 +209,15 @@ class Response {
             break;
           }
         }
-        if (!extensionMatches)
-          throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
-        CgiHandler cgi(request, serverStruct, queryString, path, interpreter);
-        responseBody = cgi.runScript(path, interpreter, responseStatus);
-      } else {
-        if (requestLocation->isAutoIndex()) {
-          responseBody = generateAutoIndex(path);
+        if (!extensionMatches){
+//          throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
+          postFile(path);
         } else {
-          std::ifstream indexFileStream(path + requestLocation->getFirstExistingIndex(path)); //нужно разные страницы загружать (см. в конфиге index)
-          if (!indexFileStream.fail()) {
-            responseBody = getDocumentContent(indexFileStream);
-          } else {
-            responseBody = "";
-          }
+          CgiHandler cgi(request, serverStruct, queryString, path, interpreter);
+          responseBody = cgi.runScript(path, interpreter, responseStatus);
         }
+      } else {
+        throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
       }
     }
   }
@@ -245,6 +254,8 @@ class Response {
     } catch (const ExtensionNotSupported &e) {
       responseStatus = BAD_REQUEST;
     } catch (const CgiParamsNotSpecified &e) {
+      responseStatus = BAD_REQUEST;
+    } catch (const MethodNotAllowed &e) {
       responseStatus = BAD_REQUEST;
     } catch (const RuntimeWebServException &e) {
       responseStatus = INTERNAL_SERVER_ERROR;
