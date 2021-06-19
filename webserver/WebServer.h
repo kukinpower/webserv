@@ -50,6 +50,7 @@ class WebServer {
       std::vector<Server>::iterator server = servers.begin();
       while (server != servers.end()) {
         try {
+          LOGGER.debug("Process select");
           server->processSelect();
           ++server;
         } catch (const RuntimeWebServException &e) {

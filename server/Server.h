@@ -21,6 +21,7 @@
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/fcntl.h>
+#include <errno.h>
 
 #include <vector>
 #include <string>
@@ -151,7 +152,9 @@ class Server {
          it != clients.end(); ++it) {
       int fd = it->getFd();
       FD_SET(fd, readFds);
+//      LOGGER.debug("SET READ FD: " + Logger::toString(fd));
       if (it->isReadyToWrite()) {
+//        LOGGER.debug("SET WRITE FD: " + Logger::toString(fd));
         FD_SET(fd, writeFds);
       }
       maxFd = std::max(maxFd, fd);
@@ -160,11 +163,34 @@ class Server {
     return maxFd;
   }
 
+  void printFds(fd_set *fds, const std::string &which) {
+    std::stringstream ss;
+    ss << which << " ";
+    for (std::vector<Client>::iterator it = clients.begin();
+         it != clients.end(); ++it) {
+      int fd = it->getFd();
+      if (FD_ISSET(fd, fds)) {
+        ss << fd << " ";
+      }
+    }
+    LOGGER.debug(ss.str());
+  }
+
+  void printReadFds(fd_set *readFds) {
+    printFds(readFds, "Read fd set:");
+  }
+
+  void printWriteFds(fd_set *writeFds) {
+    printFds(writeFds, "Write fd set:");
+  }
+
   // todo maybe fd_set writeFds & timeout
   void processSelect() {
     fd_set readFds;
     fd_set writeFds;
     int maxFd = setFdSets(&readFds, &writeFds);
+    printFds(&readFds, "Read fd set: ");
+    printFds(&writeFds, "Write fd set: ");
 
 	struct timeval time;
 	time.tv_sec = 0;
@@ -172,10 +198,15 @@ class Server {
 
 	int selectRes;
     if ((selectRes = select(maxFd + 1, &readFds, &writeFds, NULL, &time)) == -1) {
+      LOGGER.error("ERRNO: " + Logger::toString(errno));
       LOGGER.error(WebServException::SELECT_ERROR);
+      std::cin >> selectRes;
       throw SelectException();
     }
+    printFds(&readFds, "Read fds after select: ");
+    printFds(&writeFds, "Write fds after select: ");
     if (selectRes == 0) {
+      LOGGER.debug("SELECT RESULT: 0");
 	  return;
     }
 
