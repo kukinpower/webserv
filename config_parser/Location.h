@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <sstream>
+#include <fstream>
 
 class Location {
  private:
@@ -122,6 +123,15 @@ class Location {
     }
 
     return methodsVector;
+  }
+
+  std::string getFirstExistingIndex(const std::string &path) const {
+    for (std::vector<std::string>::const_reverse_iterator it = index.rbegin(); it != index.rend(); ++it) {
+      std::ifstream f(path + it->c_str());
+      if (!f.fail())
+        return *it;
+    }
+    return errorPage; //should return error page if custom exists;
   }
 
   std::vector<std::string> getMethodsVector() const {
