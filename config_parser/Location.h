@@ -69,10 +69,10 @@ class Location {
 	return allowedMethods.find(method) != allowedMethods.end();
   }
 
+  // todo optimize ?
   bool matches(const std::string &path) const {
 	return (path.length() == 1 && url.length() == 1 && path == url) ||
 			(path.substr(1).rfind(url.substr(1), 0) == 0);
-//			|| ((*(url.rbegin()) == '/') && path.substr(1).rfind(url.substr(1, url.length() - 2), 0) == 0);
   }
 
   std::string getUrl() const {

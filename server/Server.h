@@ -28,7 +28,7 @@
 #include <string>
 
 class Server {
- private:
+ public:
   // tools
   static Logger LOGGER;
   // constants

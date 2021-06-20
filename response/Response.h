@@ -25,8 +25,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-class Server;
-
 class Response {
  public:
   typedef std::map<HttpStatus, HttpStatusWrapper> HttpStatuses;
@@ -242,24 +240,12 @@ class Response {
     }
   }
 
-  static std::string getTimeStamp() {
-    char buf[50];
-    time_t now = time(0);
-    struct tm tm = *gmtime(&now);
-    strftime(buf, sizeof buf, "%a, %d %b %Y %H:%M:%S %Z", &tm);
-    std::string tmp(buf);
-    return (tmp);
-  }
-
   void doDelete() {
     std::string path = requestLocation->substitutePath(request.getPath());
     std::ifstream infile(path);
     if (infile.good() && (remove(path.c_str())) == 0) {
       responseBody = "HTTP/1.1 200 OK\n"
-                     "Date: ";
-      responseBody += getTimeStamp();
-      responseBody += "\n"
-                      "<html>\n"
+                     "<html>\n"
                       "  <body>\n"
                       "    <h1>File deleted.</h1>\n"
                       "  </body>\n"
