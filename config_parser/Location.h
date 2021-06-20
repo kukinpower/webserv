@@ -1,11 +1,13 @@
 #pragma once
 #include "Logger.h"
+#include "HttpStatus.h"
 
 #include <string>
 #include <vector>
 #include <set>
 #include <sstream>
 #include <fstream>
+#include <map>
 
 class Location {
  private:
@@ -17,7 +19,7 @@ class Location {
   std::string uploadPath;
   std::vector<std::string> cgiExt;
   std::string cgiPath;
-  std::string errorPage;
+  std::map<HttpStatus, std::string> errorPage;
 
  public:
   Location(void) {
@@ -35,7 +37,7 @@ class Location {
 
   Location(const std::string& url, const std::string& root, const std::vector<std::string> &allowedMethodsVector,
            bool autoIndex, const std::vector<std::string>& index, const std::string& uploadPath,
-           const std::vector<std::string>& cgiExt, const std::string& cgiPath, const std::string& errorPage)
+           const std::vector<std::string>& cgiExt, const std::string& cgiPath, const std::map<HttpStatus, std::string>& errorPage)
       : url(url), root(root), allowedMethods(vectorToSet(allowedMethodsVector)),
 		autoIndex(autoIndex), index(index), uploadPath(uploadPath),
 		cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
@@ -131,7 +133,7 @@ class Location {
       if (!f.fail())
         return *it;
     }
-    return errorPage; //should return error page if custom exists;
+    return "change return to a proper value!!! ";//was return errorPage; //should return error page if custom exists;
   }
 
   std::vector<std::string> getMethodsVector() const {
@@ -154,7 +156,7 @@ class Location {
     return this->cgiPath;
   }
 
-  std::string getErrorPage() const {
+  std::map<HttpStatus, std::string> getErrorPage() const {
     return this->errorPage;
   }
 
