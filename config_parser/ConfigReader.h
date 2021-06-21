@@ -29,6 +29,7 @@ struct Loc {
   std::vector<std::string> cgiExt;
   std::string cgiPath;
   std::map<HttpStatus, std::string> errorPage;
+  std::vector<std::pair<std::string, std::string> > redirect;
 };
 
 class ConfigReader {
@@ -161,9 +162,25 @@ class ConfigReader {
             it++;
           }
         }
-        else
+        else {
           std::cout << "NONE";
+        }
         std::cout << std::endl;
+
+        std::cout << "Redirect: ";
+        if (ltmp.getRedirect().size() > 0) {
+          std::vector<std::pair<std::string, std::string> > tmp = ltmp.getRedirect();
+          std::vector<std::pair<std::string, std::string> >::const_iterator it = tmp.begin();
+          while (it != tmp.end()) {
+            std::cout << it->first << " -> " << it->second << "    ";
+            it++;
+          }
+        } else {
+          std::cout << "NONE";
+        }
+        std::cout << std::endl;
+
+
         k++;
         lit++;
       }
@@ -246,6 +263,11 @@ class ConfigReader {
         loc.cgiExt.push_back(spl.back());
         spl.pop_back();
       }
+    } else if (spl.front().compare("redirect") == 0) {
+      if (spl.size() != 3){
+        throw std::runtime_error("Config file error: Wrong redirect options. Exiting...");
+      }
+      loc.redirect.push_back(std::make_pair(spl[1], spl[2]));
     } else if (spl.front().compare("cgi_path") == 0) {
       loc.cgiPath = spl.back();
     } else if (spl.front().compare("error_page") == 0) {
@@ -292,7 +314,8 @@ class ConfigReader {
 
         loc_bracket = false;
         srv.locations.push_back(Location(loc.url, loc.root, loc.allowMethod, loc.autoIndex,
-                                         loc.index, loc.uploadPath, loc.cgiExt, loc.cgiPath, loc.errorPage));
+                                         loc.index, loc.uploadPath, loc.cgiExt, loc.cgiPath,
+                                         loc.errorPage, loc.redirect));
         loc.allowMethod.clear();
         loc.index.clear();
         loc.cgiExt.clear();
