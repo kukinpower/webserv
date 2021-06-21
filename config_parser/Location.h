@@ -61,8 +61,21 @@ class Location {
   //Location &operator=(Location const &other){};
 
   std::string substitutePath(const std::string &path) const {
+    std::string name = path.substr(path.find_last_of('/') + 1);
+    bool isRedir = false;
+    for (std::vector<std::pair<std::string, std::string> >::const_iterator it = redirect.begin();
+          it != redirect.end() && !name.empty(); ++it) {
+      if (name == it->first){
+        name = it->second;
+        isRedir = true;
+        break;
+      }
+    }
     if (path.find(url) != std::string::npos) {
-      return root + path.substr(url.length() - 1);
+      if (!isRedir)
+        return root + path.substr(url.length() - 1);
+      else
+        return root + path.substr(url.length() - 1).substr(0, path.find_last_of('/')) + '/' + name;
     }
     throw RuntimeWebServException("Bad path string provided: " + path + ". Not matches with url: " + url);
   }
