@@ -184,7 +184,6 @@ class WebServer {
       throw ReadException();
     }
     if (bytesRead == 0) {
-      //todo timeout disconnect
       client.closeClient();
       return;
     }
@@ -242,6 +241,21 @@ class WebServer {
   }
 
   void clearAllClients() {
+    std::map<Client *, Server *>::iterator clientIt = clientsToServersMap.begin();
+    std::map<Client *, Server *>::iterator clientIte = clientsToServersMap.end();
+    while (clientIt != clientIte) {
+      int fdOfClient = clientIt->first->getFd();
+
+      fds[fdOfClient].fd = 0;
+      fds[fdOfClient].events = 0;
+      fds[fdOfClient].revents = 0;
+      clientFdsMap.erase(fdOfClient);
+
+      delete clientIt->first;
+      std::map<Client *, Server *>::iterator tmp = clientIt;
+      ++clientIt;
+      clientsToServersMap.erase(tmp);
+    }
 
   }
 
@@ -252,9 +266,9 @@ class WebServer {
         if (ret == -1) {
           LOGGER.error(WebServException::POLL_ERROR);
           int i;
-          throw PollException(); // todo handle this
+          throw PollException();
         } else if (ret == 0) {
-          clearAllClients(); // todo handle this
+          clearAllClients();
 //          LOGGER.info("Timeout reached. Close all connections");
         } else {
           bool establishedNewConnection = false;
