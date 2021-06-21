@@ -18,6 +18,7 @@
 #include <sys/fcntl.h>
 #include <unistd.h>
 #include <cstdlib>     /* atoi */
+#include <cstring>
 
 #include <vector>
 #include <iostream>

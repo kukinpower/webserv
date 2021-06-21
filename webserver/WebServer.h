@@ -220,7 +220,7 @@ class WebServer {
     Server *server = serverFdsMap[fds[currentFd].fd];
     try {
       struct sockaddr addr;
-      socklen_t socklen;
+      socklen_t socklen = sizeof(addr);
       int newClientFd;
 
       // if no connection, accept is blocking process and start waiting

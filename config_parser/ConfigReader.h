@@ -7,6 +7,8 @@
 #include <iostream>
 #include "Server.h"
 #include "HttpStatus.h"
+#include <cstring>
+#include <algorithm>
 
 struct Srv {
   int port;

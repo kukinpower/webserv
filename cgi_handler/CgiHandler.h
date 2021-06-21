@@ -8,6 +8,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/wait.h>
 
 #include <map>
 
@@ -208,8 +209,6 @@ class CgiHandler {
   std::string body;
   Logger LOGGER;
 };
-
-
 
 const char *CgiHandler::AUTH_TYPE = "AUTH_TYPE";
 const char *CgiHandler::CONTENT_LENGTH = "CONTENT_LENGTH";
