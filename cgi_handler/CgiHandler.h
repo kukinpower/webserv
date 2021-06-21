@@ -2,7 +2,6 @@
 
 #include "WebServException.h"
 #include "FatalWebServException.h"
-#include "FileNotFoundException.h"
 #include "Logger.h"
 #include "Location.h"
 #include "Request.h"
@@ -158,6 +157,7 @@ class CgiHandler {
       execve(interpreter.c_str(), const_cast<char*const*>(args), envVars);
       LOGGER.error("Could not execute script in CgiHandler\n" + interpreter + '\n' + script);
       responseStatus = BAD_REQUEST;
+      exit(0);
     } else {
       waitpid(-1, NULL, 0);
       delete[] args;
