@@ -149,6 +149,8 @@ class WebServer {
 
       if ((bytesWritten = send(currentFd, headersString.c_str(), headersString.length(), 0)) == -1) {
         return;
+      } else if (bytesWritten == 0) {
+        return;
       }
 
       std::size_t countWrittenBytes = 0;
@@ -167,6 +169,8 @@ class WebServer {
 
           if ((bytesWritten = send(currentFd, responseBody.c_str() + countWrittenBytes, chunkSize, 0)) == -1) {
             return;
+          } else if (bytesWritten == 0) {
+            return;
           }
 
           countWrittenBytes += bytesWritten;
@@ -181,7 +185,8 @@ class WebServer {
     int fd = client.getFd();
 
     if ((bytesRead = recv(fd, buf, BUF_SIZE, 0)) == -1) {
-      throw ReadException();
+      client.closeClient();
+      return;
     }
     if (bytesRead == 0) {
       client.closeClient();
@@ -339,7 +344,6 @@ class WebServer {
           }
         }
       } catch (const RuntimeWebServException &e) {
-        std::cout << errno << std::endl;
         LOGGER.error(e.what());
         continue;
       }
