@@ -32,7 +32,7 @@ class Server {
   static Logger LOGGER;
   // constants
   static const int TCP = 0;
-  static const int BACKLOG = 5;
+  static const int BACKLOG = 128;
   // vars
   int port;
   std::string hostName;
@@ -43,7 +43,6 @@ class Server {
   int listenerFd;
 
  public:
-  // todo?
   Server(int port = 8080,
          const std::string &hostName = "localhost",
          const std::string &serverName = "champions_server",

@@ -7,6 +7,8 @@
 #include <iostream>
 #include "Server.h"
 #include "HttpStatus.h"
+#include <cstring>
+#include <algorithm>
 
 struct Srv {
   int port;
@@ -49,7 +51,7 @@ class ConfigReader {
 
   void readConfig() {
 
-    std::ifstream fileStream(this->path);
+    std::ifstream fileStream(this->path.c_str());
 
     if (fileStream.fail()) {
       throw std::runtime_error("Error reading config file. Exiting...");

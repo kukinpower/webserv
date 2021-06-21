@@ -26,7 +26,6 @@
 #include "Logger.h"
 #include "StringBuilder.h"
 #include "HttpStatusWrapper.h"
-#include "Request.h"
 #include "CgiHandler.h"
 
 #include "FatalWebServException.h"
@@ -120,8 +119,9 @@ class WebServer {
       ss << STATUSES[responseStatus];
 
       // Content-Length
+      std::size_t responseBodyLength = responseBody.length();
       if (!responseBody.empty()) {
-        ss << "Content-Length: " << responseBody.length() << "\r\n";
+        ss << "Content-Length: " << responseBodyLength << "\r\n";
       }
 
       // Content-Type
@@ -132,11 +132,12 @@ class WebServer {
         if ((it = MIME.find(client.path.substr(pos))) != MIME.end()) {
           ss << it->second;
         } else {
-          ss << MIME[".html"] << "\r\n";
+          ss << MIME[".html"];
         }
       } else {
-        ss << MIME[".html"] << "\r\n";
+        ss << MIME[".html"];
       }
+      ss << "\r\n";
 
       // Connection
       ss << "Connection: close";
@@ -150,10 +151,25 @@ class WebServer {
         return;
       }
 
+      std::size_t countWrittenBytes = 0;
+      std::size_t CHUNK_SIZE = 100000;
       // if body exists — send body
       if (!responseBody.empty()) {
-        if ((bytesWritten = send(currentFd, responseBody.c_str(), responseBody.length(), 0)) == -1) {
-          return;
+
+        std::size_t chunkSize;
+
+        while (countWrittenBytes < responseBodyLength) {
+          if (responseBodyLength > CHUNK_SIZE) {
+            chunkSize = CHUNK_SIZE;
+          } else {
+            chunkSize = responseBodyLength;
+          }
+
+          if ((bytesWritten = send(currentFd, responseBody.c_str() + countWrittenBytes, chunkSize, 0)) == -1) {
+            return;
+          }
+
+          countWrittenBytes += bytesWritten;
         }
       }
     }
@@ -201,7 +217,7 @@ class WebServer {
     Server *server = serverFdsMap[fds[currentFd].fd];
     try {
       struct sockaddr addr;
-      socklen_t socklen;
+      socklen_t socklen = sizeof(addr);
       int newClientFd;
 
       // if no connection, accept is blocking process and start waiting
@@ -217,7 +233,7 @@ class WebServer {
       fds[newClientFd].fd = newClientFd;
       fds[newClientFd].events |= POLLIN;
 
-      LOGGER.info("Client connected, fd: " + std::to_string(newClientFd)); //todo remove
+//      LOGGER.info("Client connected, fd: " + std::to_string(newClientFd));
     } catch (const RuntimeWebServException &e) {
       LOGGER.error(e.what());
     } catch (const FatalWebServException &e) {
@@ -253,7 +269,7 @@ class WebServer {
             }
 
             if (fds[currentFd].revents & POLLIN) {
-              LOGGER.info("New Connection: " + std::to_string(currentFd)); //todo remove to string
+//              LOGGER.info("New Connection: " + std::to_string(currentFd));
               handleNewConnection();
               establishedNewConnection = true;
               break;
@@ -275,7 +291,7 @@ class WebServer {
 
               // write ------------------------------------------------------------------------------------------------
               if (fds[currentFd].revents & POLLOUT) {
-                LOGGER.info("Write to: " + std::to_string(currentFd)); //todo remove tostring
+//                LOGGER.info("Write to: " + std::to_string(currentFd));
 
                 writeToClientSocket(client, clientIt);
                 client.closeClient();
@@ -284,7 +300,7 @@ class WebServer {
               }
                 // read ------------------------------------------------------------------------------------------------
               else if (fds[currentFd].revents & POLLIN) {
-                LOGGER.info("Read from: " + std::to_string(currentFd)); //todo remove tostring
+//                LOGGER.info("Read from: " + std::to_string(currentFd));
 
                 readFromClientSocket(client);
                 if (client.getClientStatus() == WRITE) {
@@ -298,7 +314,9 @@ class WebServer {
                 fds[currentFd].revents = 0;
                 clientFdsMap.erase(currentFd);
                 delete clientIt->first;
-                clientIt = clientsToServersMap.erase(clientIt);
+                std::map<Client *, Server *>::iterator tmp = clientIt;
+                ++clientIt;
+                clientsToServersMap.erase(tmp);
               } else {
                 fds[currentFd].revents = 0;
                 ++clientIt;
@@ -314,7 +332,7 @@ class WebServer {
     }
   }
  private:
-  std::string convertStatus(const HttpStatus& status){
+  std::string convertStatus(const HttpStatus &status) {
     if (status == NOT_FOUND)
       return "404 Not Found";
     if (status == INTERNAL_SERVER_ERROR)
@@ -324,11 +342,12 @@ class WebServer {
     return "400 Bad Request";
   }
 
-  void loadErrorPages(std::map<HttpStatus, std::string> &ep, const std::string &root){
+  void loadErrorPages(std::map<HttpStatus, std::string> &ep, const std::string &root) {
     for (std::map<HttpStatus, std::string>::iterator it = ep.begin(); it != ep.end(); ++it) {
-      std::ifstream f(root + '/' + it->second);
+      std::ifstream f((root + '/' + it->second).c_str());
       if (f.fail())
-        ep[it->first] = "HTTP/1.1 " + convertStatus(it->first) + "\r\nContent-Length: 6\r\nContent-Type: text/html\r\nConnection: close\r\n\r\nERROR";
+        ep[it->first] = "HTTP/1.1 " + convertStatus(it->first)
+            + "\r\nContent-Length: 6\r\nContent-Type: text/html\r\nConnection: close\r\n\r\nERROR";
       else {
         std::string content = getDocumentContent(f);
         ep[it->first] = "HTTP/1.1 " + convertStatus(it->first) + "\r\nContent-Length: " + _toLiteral(content.length()) +
@@ -352,7 +371,7 @@ class WebServer {
     }
     std::vector<Server>::iterator srv = vector.begin();
     while (srv != vector.end()) {
-      for(std::vector<Location>::iterator it = srv->getLocations().begin(); it != srv->getLocations().end(); it++)
+      for (std::vector<Location>::iterator it = srv->getLocations().begin(); it != srv->getLocations().end(); it++)
         loadErrorPages(it->getErrorPageByRef(), it->getRoot());
       servers.push_back(new Server(*srv));
       ++srv;
@@ -472,7 +491,7 @@ class WebServer {
   void doGet(Client &client, Server &server) {
     const std::string &path = requestLocation->substitutePath(client.path);
 
-    std::ifstream fileStream(path);
+    std::ifstream fileStream(path.c_str());
     if (fileStream.fail()) {
       responseStatus = NOT_FOUND;
       return;
@@ -488,7 +507,7 @@ class WebServer {
       if (requestLocation->isAutoIndex()) {
         generateAutoIndex(client, server, path);
       } else {
-        std::ifstream indexFileStream(path + requestLocation->getFirstExistingIndex(path));
+        std::ifstream indexFileStream((path + requestLocation->getFirstExistingIndex(path)).c_str());
         if (!indexFileStream.fail()) {
           getDocumentContentInside(indexFileStream);
         } else {
@@ -501,8 +520,8 @@ class WebServer {
     responseStatus = OK;
   }
 
-  void postFile(const std::string &path, Client &client){
-    std::fstream nf(path,std::fstream::in | std::fstream::out | std::fstream::trunc);
+  void postFile(const std::string &path, Client &client) {
+    std::fstream nf(path.c_str(), std::fstream::in | std::fstream::out | std::fstream::trunc);
     if (!nf.fail()) {
       nf << client.body;
       responseStatus = CREATED;
@@ -511,8 +530,7 @@ class WebServer {
                      "    <h1>File Created.</h1>\n"
                      "  </body>\n"
                      "</html>";
-    }
-    else {
+    } else {
       responseStatus = INTERNAL_SERVER_ERROR;
       responseBody = "";
     }
@@ -522,7 +540,7 @@ class WebServer {
     std::string path = requestLocation->substitutePath(client.path);
     std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
     std::string queryString = extractQueryString(path);
-    std::ifstream fileStream(path);
+    std::ifstream fileStream(path.c_str());
     std::string directory = path.substr(0, path.rfind('/'));
     if (fileStream.fail()) {
       if (!isDirectory(directory.c_str())) {
@@ -531,12 +549,12 @@ class WebServer {
       }
       postFile(path, client);
       responseStatus = CREATED;
-      return ;
+      return;
     }
     if (!isDirectory(path.c_str())) {
       if (requestLocation->getCgiPath().empty() || requestLocation->getCgiExt().empty()) {
         responseStatus = BAD_REQUEST;
-        return ;
+        return;
       }
       std::string extension = findExtension(path);
       bool extensionMatches = false;
@@ -547,7 +565,7 @@ class WebServer {
           break;
         }
       }
-      if (!extensionMatches){
+      if (!extensionMatches) {
         postFile(path, client);
       } else {
         CgiHandler cgi(client, server, queryString, path, interpreter);
@@ -560,7 +578,7 @@ class WebServer {
 
   void doDelete(Client &client, Server &server) {
     std::string path = requestLocation->substitutePath(client.path);
-    std::ifstream infile(path);
+    std::ifstream infile(path.c_str());
     if (infile.good() && (remove(path.c_str())) == 0) {
       responseBody = "HTTP/1.1 200 OK\n"
                      "<html>\n"
@@ -594,7 +612,7 @@ class WebServer {
         responseStatus = BAD_REQUEST;
         return;
       }
-      if (!requestLocation->isMethodAllowed(client.method)){
+      if (!requestLocation->isMethodAllowed(client.method)) {
         responseStatus = NOT_ALLOWED;
         return;
       }

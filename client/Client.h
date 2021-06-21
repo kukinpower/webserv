@@ -1,7 +1,7 @@
 #pragma once
-#include "Request.h"
 #include "Logger.h"
 #include "ClientStatus.h"
+#include "HttpMethod.h"
 
 #include "PollException.h"
 #include "BadListenerFdException.h"
@@ -18,6 +18,7 @@
 #include <sys/fcntl.h>
 #include <unistd.h>
 #include <cstdlib>     /* atoi */
+#include <cstring>
 
 #include <vector>
 #include <iostream>
