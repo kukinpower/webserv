@@ -110,26 +110,7 @@ class WebServer {
 
     // if was error status, send error response
     if (isErrorStatus()) {
-//      const std::string &errorResponse = requestLocation->errorPage[responseStatus];
-      const std::string &errorResponse =
-          "HTTP/1.1 404 Not found\r\n"
-          "Content-Length: 370\r\n"
-          "Content-Type: text/html\r\n"
-          "Connection: close\r\n\r\n"
-          "<!doctype html>\n"
-                                         "<html lang=\"en\">\n"
-                                         "<head>\n"
-                                         "    <meta charset=\"UTF-8\">\n"
-                                         "    <meta name=\"viewport\"\n"
-                                         "          content=\"width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0\">\n"
-                                         "    <meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\">\n"
-                                         "    <title>Hello!</title>\n"
-                                         "</head>\n"
-                                         "<body>\n"
-                                         "    <h1>404</h1>\n"
-                                         "    <h2>Content not found</h2>\n"
-                                         "</body>\n"
-                                         "</html>";
+      const std::string &errorResponse = requestLocation->errorPage[responseStatus];
       if ((bytesWritten = send(currentFd, errorResponse.c_str(), errorResponse.length(), 0)) == -1) {
         return;
       }
@@ -333,18 +314,29 @@ class WebServer {
     }
   }
  private:
+  std::string convertStatus(const HttpStatus& status){
+    if (status == NOT_FOUND)
+      return "404 Not Found";
+    if (status == INTERNAL_SERVER_ERROR)
+      return "500 Internal Server Error";
+    if (status == NOT_ALLOWED)
+      return "405 Method Not Allowed";
+    return "400 Bad Request";
+  }
+
   void loadErrorPages(std::map<HttpStatus, std::string> &ep, const std::string &root){
     for (std::map<HttpStatus, std::string>::iterator it = ep.begin(); it != ep.end(); ++it) {
       std::ifstream f(root + '/' + it->second);
       if (f.fail())
-        ep[it->first] = "HTTP 1.1 200 OK\r\nContent-Length: 6\r\nContent-Type: text/html\r\nConnection: close\r\n\r\nERROR";
+        ep[it->first] = "HTTP/1.1 " + convertStatus(it->first) + "\r\nContent-Length: 6\r\nContent-Type: text/html\r\nConnection: close\r\n\r\nERROR";
       else {
         std::string content = getDocumentContent(f);
-        ep[it->first] = "HTTP 1.1 200 OK\r\nContent-Length: " + _toLiteral(content.length()) +
+        ep[it->first] = "HTTP/1.1 " + convertStatus(it->first) + "\r\nContent-Length: " + _toLiteral(content.length()) +
             "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" + content;
       }
     }
   }
+
  public:
   void parseConfig(int ac, char *av[]) {
     std::vector<Server> vector;
@@ -514,10 +506,16 @@ class WebServer {
     if (!nf.fail()) {
       nf << client.body;
       responseStatus = CREATED;
+      responseBody = "<html>\n"
+                     "  <body>\n"
+                     "    <h1>File Created.</h1>\n"
+                     "  </body>\n"
+                     "</html>";
     }
-    else
+    else {
       responseStatus = INTERNAL_SERVER_ERROR;
-    responseBody = "";
+      responseBody = "";
+    }
   }
 
   void doPost(Client &client, Server &server) {
@@ -560,21 +558,21 @@ class WebServer {
     }
   }
 
-  void doDelete() {
-//    std::string path = requestLocation->substitutePath(request.getPath());
-//    std::ifstream infile(path);
-//    if (infile.good() && (remove(path.c_str())) == 0) {
-//      responseBody = "HTTP/1.1 200 OK\n"
-//                     "<html>\n"
-//                     "  <body>\n"
-//                     "    <h1>File deleted.</h1>\n"
-//                     "  </body>\n"
-//                     "</html>";
-//      infile.close();
-//      responseStatus = OK; // unstoppable "Select error" here
-//    } else {
-//      responseStatus = NOT_FOUND; // hangs here, status showing only after process stops
-//    }
+  void doDelete(Client &client, Server &server) {
+    std::string path = requestLocation->substitutePath(client.path);
+    std::ifstream infile(path);
+    if (infile.good() && (remove(path.c_str())) == 0) {
+      responseBody = "HTTP/1.1 200 OK\n"
+                     "<html>\n"
+                     "  <body>\n"
+                     "    <h1>File deleted.</h1>\n"
+                     "  </body>\n"
+                     "</html>";
+//      infile.close(); //is closed by destructor
+      responseStatus = OK; // unstoppable "Select error" here
+    } else {
+      responseStatus = NOT_FOUND; // hangs here, status showing only after process stops
+    }
   }
 
  public:
@@ -585,7 +583,7 @@ class WebServer {
            location != locations.end();
            ++location) {
 
-        if (location->matches(client.path) && location->isMethodAllowed(client.method)) {
+        if (location->matches(client.path)) {
           requestLocation = &(*location);
           if (location->getUrl() != "/") {
             break;
@@ -596,13 +594,17 @@ class WebServer {
         responseStatus = BAD_REQUEST;
         return;
       }
+      if (!requestLocation->isMethodAllowed(client.method)){
+        responseStatus = NOT_ALLOWED;
+        return;
+      }
 
       if (client.method == GET) {
         doGet(client, server);
       } else if (client.method == POST) {
         doPost(client, server);
       } else if (client.method == DELETE) {
-        doDelete();
+        doDelete(client, server);
       } else {
         responseStatus = BAD_REQUEST;
       }
