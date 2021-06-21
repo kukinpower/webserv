@@ -132,7 +132,7 @@ class Location {
 
   std::string getFirstExistingIndex(const std::string &path) const {
     for (std::vector<std::string>::const_reverse_iterator it = index.rbegin(); it != index.rend(); ++it) {
-      std::ifstream f(path + it->c_str());
+      std::ifstream f((path + *it).c_str());
       if (!f.fail())
         return *it;
     }

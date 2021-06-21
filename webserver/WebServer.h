@@ -297,7 +297,9 @@ class WebServer {
                 fds[currentFd].revents = 0;
                 clientFdsMap.erase(currentFd);
                 delete clientIt->first;
-                clientIt = clientsToServersMap.erase(clientIt);
+                std::map<Client *, Server *>::iterator tmp = clientIt;
+                ++clientIt;
+                clientsToServersMap.erase(tmp);
               } else {
                 fds[currentFd].revents = 0;
                 ++clientIt;
@@ -325,7 +327,7 @@ class WebServer {
 
   void loadErrorPages(std::map<HttpStatus, std::string> &ep, const std::string &root){
     for (std::map<HttpStatus, std::string>::iterator it = ep.begin(); it != ep.end(); ++it) {
-      std::ifstream f(root + '/' + it->second);
+      std::ifstream f((root + '/' + it->second).c_str());
       if (f.fail())
         ep[it->first] = "HTTP/1.1 " + convertStatus(it->first) + "\r\nContent-Length: 6\r\nContent-Type: text/html\r\nConnection: close\r\n\r\nERROR";
       else {
@@ -471,7 +473,7 @@ class WebServer {
   void doGet(Client &client, Server &server) {
     const std::string &path = requestLocation->substitutePath(client.path);
 
-    std::ifstream fileStream(path);
+    std::ifstream fileStream(path.c_str());
     if (fileStream.fail()) {
       responseStatus = NOT_FOUND;
       return;
@@ -487,7 +489,7 @@ class WebServer {
       if (requestLocation->isAutoIndex()) {
         generateAutoIndex(client, server, path);
       } else {
-        std::ifstream indexFileStream(path + requestLocation->getFirstExistingIndex(path));
+        std::ifstream indexFileStream((path + requestLocation->getFirstExistingIndex(path)).c_str());
         if (!indexFileStream.fail()) {
           getDocumentContentInside(indexFileStream);
         } else {
@@ -501,7 +503,7 @@ class WebServer {
   }
 
   void postFile(const std::string &path, Client &client){
-    std::fstream nf(path,std::fstream::in | std::fstream::out | std::fstream::trunc);
+    std::fstream nf(path.c_str(), std::fstream::in | std::fstream::out | std::fstream::trunc);
     if (!nf.fail()) {
       nf << client.body;
       responseStatus = CREATED;
@@ -521,7 +523,7 @@ class WebServer {
     std::string path = requestLocation->substitutePath(client.path);
     std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
     std::string queryString = extractQueryString(path);
-    std::ifstream fileStream(path);
+    std::ifstream fileStream(path.c_str());
     std::string directory = path.substr(0, path.rfind('/'));
     if (fileStream.fail()) {
       if (!isDirectory(directory.c_str())) {
@@ -559,7 +561,7 @@ class WebServer {
 
   void doDelete(Client &client, Server &server) {
     std::string path = requestLocation->substitutePath(client.path);
-    std::ifstream infile(path);
+    std::ifstream infile(path.c_str());
     if (infile.good() && (remove(path.c_str())) == 0) {
       responseBody = "HTTP/1.1 200 OK\n"
                      "<html>\n"
