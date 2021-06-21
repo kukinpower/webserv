@@ -2,6 +2,7 @@
 
 #include "WebServException.h"
 #include "FatalWebServException.h"
+#include "FileNotFoundException.h"
 #include "Logger.h"
 #include "Location.h"
 #include "Request.h"
@@ -156,8 +157,7 @@ class CgiHandler {
       dup2(fdOutput, STDOUT);
       execve(interpreter.c_str(), const_cast<char*const*>(args), envVars);
       LOGGER.error("Could not execute script in CgiHandler\n" + interpreter + '\n' + script);
-//      responseStatus = BAD_REQUEST;
-      throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + script + "'" + "OR" + " '" + interpreter + "'" ); //404
+      responseStatus = BAD_REQUEST;
     } else {
       waitpid(-1, NULL, 0);
       delete[] args;
