@@ -201,7 +201,7 @@ class Server {
     return this->maxBodySize;
   }
 
-  std::vector<Location> getLocations() const {
+  std::vector<Location> &getLocations() {
     return this->locations;
   }
 

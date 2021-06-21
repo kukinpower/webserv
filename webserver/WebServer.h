@@ -118,8 +118,14 @@ class WebServer {
 
     std::size_t bytesWritten = 0;
 
-    // If was error just send whole body, it is already generated
-    if (!isErrorStatus()) {
+    // if was error status, send error response
+    if (isErrorStatus()) {
+      const std::string &errorResponse = requestLocation->errorPage[responseStatus];
+      if ((bytesWritten = send(currentFd, errorResponse.c_str(), errorResponse.length(), 0)) == -1) {
+        return;
+      }
+    } else {
+      // generate headers
       std::stringstream ss;
       ss << STATUSES[responseStatus];
 
@@ -136,11 +142,14 @@ class WebServer {
         if ((it = MIME.find(client.path.substr(pos))) != MIME.end()) {
           ss << it->second;
         } else {
-          ss << MIME[".html"];
+          ss << MIME[".html"] << "\r\n";
         }
       } else {
-        ss << MIME[".html"];
+        ss << MIME[".html"] << "\r\n";
       }
+
+      // Connection
+      ss << "Connection: close";
 
       // end of response headers
       ss << "\r\n\r\n";
@@ -148,26 +157,16 @@ class WebServer {
       const std::string &headersString = ss.str();
 
       if ((bytesWritten = send(currentFd, headersString.c_str(), headersString.length(), 0)) == -1) {
-        client.closeClient();
         return;
       }
+
+      // if body exists — send body
+      if (!responseBody.empty()) {
+        if ((bytesWritten = send(currentFd, responseBody.c_str(), responseBody.length(), 0)) == -1) {
+          return;
+        }
+      }
     }
-
-    if ((bytesWritten = send(currentFd, responseBody.c_str(), responseBody.length(), 0)) == -1) {
-      client.closeClient();
-      return;
-    }
-
-    client.closeClient();
-    // todo close client after any write
-  }
-
-  void clearOneClient(std::map<Client *, Server *>::iterator &clientIt) {
-    fds[currentFd].fd = 0;
-    fds[currentFd].events = 0;
-    fds[currentFd].revents = 0;
-    clientFdsMap.erase(currentFd);
-    delete clientIt->first;
   }
 
   void readRequestChunk(Client &client) {
@@ -247,9 +246,9 @@ class WebServer {
         if (ret == -1) {
           LOGGER.error(WebServException::POLL_ERROR);
           int i;
-          throw PollException();
+          throw PollException(); // todo handle this
         } else if (ret == 0) {
-          clearAllClients();
+          clearAllClients(); // todo handle this
           LOGGER.info("Timeout reached. Close all connections");
         } else {
           bool establishedNewConnection = false;
@@ -278,6 +277,7 @@ class WebServer {
               currentFd = clientIt->first->getFd();
 
               if (fds[currentFd].revents == 0) {
+                ++clientIt;
                 continue;
               }
 
@@ -288,6 +288,9 @@ class WebServer {
                 LOGGER.info("Write to: " + std::to_string(currentFd));
 
                 writeToClientSocket(client, clientIt);
+                client.closeClient();
+                requestLocation = NULL;
+                // todo maybe set more
               }
                 // read ------------------------------------------------------------------------------------------------
               else if (fds[currentFd].revents & POLLIN) {
@@ -379,10 +382,10 @@ class WebServer {
 
   std::string responseBody;
   HttpStatus responseStatus;
-  std::vector<Location>::const_iterator requestLocation;
+  Location *requestLocation;
 
   typedef std::map<std::string, std::string>::iterator iterator;
-  
+
  private:
   std::string joinStrings(const std::vector<std::string> &v, const std::string &sequence) {
     std::stringstream ss;
@@ -403,7 +406,7 @@ class WebServer {
   }
 
   bool isErrorStatus() {
-    return responseStatus != OK && responseStatus != CREATED;
+    return responseStatus != OK && responseStatus != CREATED && responseStatus != NO_CONTENT;
   }
 
   std::string getContentType(const std::string &path) {
@@ -472,7 +475,7 @@ class WebServer {
     fileStream.seekg(0, std::ios::beg);
     std::vector<char> buffer(length);
     fileStream.read(&buffer[0], length);
-    
+
     responseBody = std::string(buffer.begin(), buffer.end());
   }
 
@@ -517,39 +520,27 @@ class WebServer {
   }
 
   void doPost(Client &client, Server &server) {
-//    const Headers &requestHeaders = request.getHeaders();
-//
-//    if (!Request::isConnectionClose(requestHeaders)) {
-//      std::string path = requestLocation->substitutePath(request.getPath());
-//      std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
-//      std::string queryString = extractQueryString(path);
-//      std::ifstream fileStream(path);
-//      if (fileStream.fail()) {
-//        throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
+//    std::string path = requestLocation->substitutePath(request.getPath());
+//    std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
+//    std::string queryString = extractQueryString(path);
+//    std::ifstream fileStream(path);
+//    if (fileStream.fail()) {
+//      // todo change all exceptions to statuses
+//      throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
+//    }
+//    if (!isDirectory(path.c_str())) {
+//      if (requestLocation->getCgiPath().empty() || requestLocation->getCgiExt().empty()) {  //validate path?
+//        throw CgiParamsNotSpecified(Logger::toString(WebServException::CGI_PARAMS_NOT_SPECIFIED) + " '" + path + "'");
 //      }
-//      if (!isDirectory(path.c_str())) {
-//        if (!requestLocation->isMethodAllowed(POST))
-//          throw MethodNotAllowed(Logger::toString(WebServException::METHOD_NOT_ALLOWED) + " '" + path + "'"); //405
-//        if (requestLocation->getCgiPath().empty() || requestLocation->getCgiExt().empty())  //validate path?
-//          throw CgiParamsNotSpecified(Logger::toString(WebServException::CGI_PARAMS_NOT_SPECIFIED) + " '" + path + "'");
-//        std::string extension = findExtension(path);
-//        if (find(requestLocation->getCgiExt().begin(), requestLocation->getCgiExt().end(), extension)
-//            == requestLocation->getCgiExt().end())
-//          throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
-//        CgiHandler cgi(request, serverStruct, queryString, path, interpreter);
-//        responseBody = cgi.runScript(path, interpreter, responseStatus);
-//      } else {
-//        if (requestLocation->isAutoIndex()) {
-//          responseBody = generateAutoIndex(path);
-//        } else {
-//          std::ifstream indexFileStream(path + "index.html"); //нужно разные страницы загружать (см. в конфиге index)
-//          if (!indexFileStream.fail()) {
-//            responseBody = getDocumentContent(indexFileStream);
-//          } else {
-//            responseBody = "";
-//          }
-//        }
+//      std::string extension = findExtension(path);
+//      if (find(requestLocation->getCgiExt().begin(), requestLocation->getCgiExt().end(), extension)
+//          == requestLocation->getCgiExt().end()) {
+//        throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
 //      }
+//      CgiHandler cgi(request, serverStruct, queryString, path, interpreter);
+//      responseBody = cgi.runScript(path, interpreter, responseStatus);
+//    } else {
+//      // create file
 //    }
   }
 
@@ -570,30 +561,26 @@ class WebServer {
 //    }
   }
 
-  void handleStatus() {
-    if (responseStatus == NOT_FOUND) {
-      responseBody = getDocumentContentByPath(requestLocation->getErrorPage());
-    } else if (responseStatus == INTERNAL_SERVER_ERROR) {
-      responseBody = getDocumentContentByPath("./html/500.html"); //todo no hardcode
-    } else if (responseStatus == BAD_REQUEST) {
-      responseBody = getDocumentContentByPath("./html/400.html"); //todo no hardcode
-    }
-  }
-
  public:
   void generateResponse(Client &client, Server &server) {
-    const std::vector<Location> &locations = server.getLocations();
+    std::vector<Location> &locations = server.getLocations();
     try {
-      for (std::vector<Location>::const_iterator location = locations.begin();
+      for (std::vector<Location>::iterator location = locations.begin();
            location != locations.end();
            ++location) {
 
         if (location->matches(client.path) && location->isMethodAllowed(client.method)) {
-          requestLocation = location;
-          if (location->getUrl() != "/")
+          requestLocation = &(*location);
+          if (location->getUrl() != "/") {
             break;
+          }
         }
       }
+      if (requestLocation == NULL) {
+        responseStatus = BAD_REQUEST;
+        return;
+      }
+
       if (client.method == GET) {
         doGet(client, server);
       } else if (client.method == POST) {
@@ -606,11 +593,6 @@ class WebServer {
     } catch (const std::exception &e) {
       LOGGER.error("Exception thrown");
       responseStatus = BAD_REQUEST;
-    }
-
-    // bad error status
-    if (isErrorStatus()) {
-      handleStatus();
     }
   }
 
@@ -628,7 +610,7 @@ class WebServer {
     std::map<HttpStatus, std::string> statuses;
     statuses.insert(std::make_pair(OK, "HTTP/1.1 200 OK\r\n"));
     statuses.insert(std::make_pair(CREATED, "HTTP/1.1 201 Created\r\n"));
-    statuses.insert(std::make_pair(NO_CONTENT, "HTTP/1.1 No Content\r\n"));
+    statuses.insert(std::make_pair(NO_CONTENT, "HTTP/1.1 204 No Content\r\n"));
     statuses.insert(std::make_pair(NOT_FOUND, "HTTP/1.1 404 Not Found\r\n"));
     statuses.insert(std::make_pair(BAD_REQUEST, "HTTP/1.1 400 Bad Request\r\n"));
     statuses.insert(std::make_pair(MOVED_PERMANENTLY, "HTTP/1.1 301 Moved Permanently\r\n"));
@@ -649,19 +631,6 @@ class WebServer {
     mime.insert(std::make_pair(".sh", "application/x-sh"));
     return mime;
   }
-
-//  Headers initStatusesToStrings() {
-//     mime;
-//    mime.insert(std::make_pair(".htm", "text/html"));
-//    mime.insert(std::make_pair(".html", "text/html"));
-//    mime.insert(std::make_pair(".jpg", "image/jpeg"));
-//    mime.insert(std::make_pair(".jpeg", "image/jpeg"));
-//    mime.insert(std::make_pair(".png", "image/png"));
-//    mime.insert(std::make_pair(".js", "text/javascript"));
-//    mime.insert(std::make_pair(".txt", "text/plain"));
-//    mime.insert(std::make_pair(".sh", "application/x-sh"));
-//    return mime;
-//  }
 };
 
 Logger WebServer::LOGGER(Logger::DEBUG);

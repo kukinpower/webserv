@@ -1,6 +1,5 @@
 #pragma once
 #include "Request.h"
-#include "Response.h"
 #include "Logger.h"
 #include "ClientStatus.h"
 

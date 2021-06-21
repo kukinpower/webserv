@@ -2,9 +2,11 @@
 
 #include <fstream>
 #include <vector>
+#include <map>
 #include <string>
 #include <iostream>
 #include "Server.h"
+#include "HttpStatus.h"
 
 struct Srv {
   int port;
@@ -24,9 +26,7 @@ struct Loc {
   std::string uploadPath;
   std::vector<std::string> cgiExt;
   std::string cgiPath;
-  std::string errorPage;
-  std::string redirectFrom;
-  std::string redirectTo;
+  std::map<HttpStatus, std::string> errorPage;
 };
 
 class ConfigReader {
@@ -150,19 +150,23 @@ class ConfigReader {
         }
         std::cout << std::endl;
         std::cout << "CGI path: " << (ltmp.getCgiPath().length() > 0 ? ltmp.getCgiPath() : "NONE") << std::endl;
-        std::cout << "Error page: " << (ltmp.getErrorPage().length() > 0 ? ltmp.getErrorPage() : "NONE") << std::endl;
-
-        std::cout << "Redirect: ";
-        if (ltmp.getRedirectFrom().length() == 0)
-            std::cout << "NONE" << std::endl;
+        std::cout << "Error page: ";
+        if (ltmp.getErrorPage().size() > 0) {
+          std::map<HttpStatus, std::string> tmp = ltmp.getErrorPage();
+          std::map<HttpStatus, std::string>::const_iterator it = tmp.begin();
+          while (it != tmp.end()) {
+            std::cout << it->first << " : " << it->second <<"           ";
+            it++;
+          }
+        }
         else
-            std::cout << ltmp.getRedirectFrom() << " -> " << ltmp.getRedirectTo() << std::endl;
-        std::cout << "--------------------------" << std::endl;
+          std::cout << "NONE";
+        std::cout << std::endl;
         k++;
         lit++;
       }
       std::cout << "\033[0m";
-
+      std::cout << "===========================\n" << std::endl;
       i++;
       it++;
 
@@ -243,12 +247,15 @@ class ConfigReader {
     } else if (spl.front().compare("cgi_path") == 0) {
       loc.cgiPath = spl.back();
     } else if (spl.front().compare("error_page") == 0) {
-      loc.errorPage = spl.back();
-    } else if (spl.front().compare("redirect") == 0) {
-      if (spl.size() != 3 || spl[1].length() == 0 || spl[2].length() == 0)
-        throw std::runtime_error("Config file error: wrong location option. Exiting...");
-      loc.redirectFrom = spl[1];
-      loc.redirectTo = spl[2];
+      if (spl[1] == "400") {
+        loc.errorPage.insert(std::make_pair(BAD_REQUEST, spl[2]));
+      } else if (spl[1] == "404") {
+        loc.errorPage.insert(std::make_pair(NOT_FOUND, spl[2]));
+      } else if (spl[1] == "500") {
+        loc.errorPage.insert(std::make_pair(INTERNAL_SERVER_ERROR, spl[2]));
+      } else {
+        throw std::runtime_error("Config file error: Non-existing status ti match error page. Exiting...");
+      }
     } else {
       throw std::runtime_error("Config file error: wrong location option. Exiting...");
     }
@@ -281,8 +288,7 @@ class ConfigReader {
 
         loc_bracket = false;
         srv.locations.push_back(Location(loc.url, loc.root, loc.allowMethod, loc.autoIndex,
-                                         loc.index, loc.uploadPath, loc.cgiExt, loc.cgiPath,
-                                         loc.errorPage, loc.redirectFrom, loc.redirectTo));
+                                         loc.index, loc.uploadPath, loc.cgiExt, loc.cgiPath, loc.errorPage));
         loc.allowMethod.clear();
         loc.index.clear();
         loc.cgiExt.clear();
@@ -297,24 +303,6 @@ class ConfigReader {
     }
     this->servers.push_back(Server(srv.port, srv.hostName, srv.serverName,
                                    srv.errorPage, srv.maxBodySize, srv.locations));
-  }
-
-  int checkPorts() {
-
-    std::vector<Server>::iterator it = this->servers.begin();
-    std::vector<int> ports;
-
-    while (it != this->servers.end()) {
-      Server tmp = *it;
-      int port = tmp.getPort();
-      if(std::find(ports.begin(), ports.end(), port) != ports.end()) {
-        return 1;
-      } else {
-        ports.push_back(port);
-        it++;
-      }
-    }
-    return 0;
   }
 
   void setConfig(std::vector<std::string> data) {
@@ -359,9 +347,22 @@ class ConfigReader {
     if (this->servers.size() == 0) {
       throw std::runtime_error("Config file error: no server data found. Exiting...");
     }
-    if (checkPorts() > 0) {
-     throw std::runtime_error("Config file error: Same port on few servers. Exiting...");
+    if (checkPorts() != 0) {
+      throw std::runtime_error("Config file error: Duplicate ports found. Exiting...");
     }
+  }
+
+  int checkPorts()
+  {
+    std::vector<Server>::iterator it = servers.begin();
+    std::vector<int> ports;
+    while (it != servers.end()) {
+      if (std::find(ports.begin(), ports.end(), it->getPort()) != ports.end())
+        return 1;
+      ports.push_back(it->getPort());
+      it++;
+    }
+    return 0;
   }
 
  private:
