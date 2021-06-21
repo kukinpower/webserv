@@ -319,6 +319,8 @@ class WebServer {
       return "404 Not Found";
     if (status == INTERNAL_SERVER_ERROR)
       return "500 Internal Server Error";
+    if (status == NOT_ALLOWED)
+      return "405 Method Not Allowed";
     return "400 Bad Request";
   }
 
@@ -581,7 +583,7 @@ class WebServer {
            location != locations.end();
            ++location) {
 
-        if (location->matches(client.path) && location->isMethodAllowed(client.method)) {
+        if (location->matches(client.path)) {
           requestLocation = &(*location);
           if (location->getUrl() != "/") {
             break;
@@ -590,6 +592,10 @@ class WebServer {
       }
       if (requestLocation == NULL) {
         responseStatus = BAD_REQUEST;
+        return;
+      }
+      if (!requestLocation->isMethodAllowed(client.method)){
+        responseStatus = NOT_ALLOWED;
         return;
       }
 
