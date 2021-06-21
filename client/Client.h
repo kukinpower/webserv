@@ -176,6 +176,10 @@ class Client {
       clientStatus = WAITING_BODY;
       return;
     }
+
+    if (length < body.length()) {
+      return closeClient();
+    }
 }
 
 ClientStatus getClientStatus() const {
