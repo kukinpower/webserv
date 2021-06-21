@@ -600,7 +600,6 @@ class WebServer {
                      "    <h1>File deleted.</h1>\n"
                      "  </body>\n"
                      "</html>";
-//      infile.close(); //is closed by destructor
       responseStatus = OK; // unstoppable "Select error" here
     } else {
       responseStatus = NOT_FOUND; // hangs here, status showing only after process stops
