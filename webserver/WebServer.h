@@ -324,6 +324,19 @@ class WebServer {
       }
     }
   }
+ private:
+  void loadErrorPages(std::map<HttpStatus, std::string> &ep, const std::string &root){
+    for (std::map<HttpStatus, std::string>::iterator it = ep.begin(); it != ep.end(); ++it) {
+      std::ifstream f(root + '/' + it->second);
+      if (f.fail())
+        ep[it->first] = "HTTP 1.1 200 OK\r\nContent-Length: 6\r\nContent-Type: text/html\r\nConnection: close\r\n\r\nERROR";
+      else {
+        std::string content = getDocumentContent(f);
+        ep[it->first] = "HTTP 1.1 200 OK\r\nContent-Length: " + _toLiteral(content.length()) +
+            "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" + content;
+      }
+    }
+  }
  public:
   void parseConfig(int ac, char *av[]) {
     std::vector<Server> vector;
@@ -339,6 +352,8 @@ class WebServer {
     }
     std::vector<Server>::iterator srv = vector.begin();
     while (srv != vector.end()) {
+      for(std::vector<Location>::iterator it = srv->getLocations().begin(); it != srv->getLocations().end(); it++)
+        loadErrorPages(it->getErrorPageByRef(), it->getRoot());
       servers.push_back(new Server(*srv));
       ++srv;
     }
@@ -506,12 +521,12 @@ class WebServer {
       if (requestLocation->isAutoIndex()) {
         generateAutoIndex(client, server, path);
       } else {
-        std::ifstream indexFileStream(path + "index.html"); //нужно разные страницы загружать (см. в конфиге index)
+        std::ifstream indexFileStream(path + requestLocation->getFirstExistingIndex(path));
         if (!indexFileStream.fail()) {
           getDocumentContentInside(indexFileStream);
         } else {
           responseBody.clear();
-          responseStatus = INTERNAL_SERVER_ERROR;
+          responseStatus = NOT_FOUND;
           return;
         }
       }
@@ -519,29 +534,56 @@ class WebServer {
     responseStatus = OK;
   }
 
+  void postFile(const std::string &path, Client &client){
+    std::fstream nf(path,std::fstream::in | std::fstream::out | std::fstream::trunc);
+    if (!nf.fail()) {
+      nf << client.body;
+      responseStatus = CREATED;
+    }
+    else
+      responseStatus = INTERNAL_SERVER_ERROR;
+    responseBody = "";
+  }
+
   void doPost(Client &client, Server &server) {
-//    std::string path = requestLocation->substitutePath(request.getPath());
-//    std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
-//    std::string queryString = extractQueryString(path);
-//    std::ifstream fileStream(path);
-//    if (fileStream.fail()) {
-//      // todo change all exceptions to statuses
-//      throw FileNotFoundException(Logger::toString(WebServException::FILE_NOT_FOUND) + " '" + path + "'"); //404
-//    }
-//    if (!isDirectory(path.c_str())) {
-//      if (requestLocation->getCgiPath().empty() || requestLocation->getCgiExt().empty()) {  //validate path?
-//        throw CgiParamsNotSpecified(Logger::toString(WebServException::CGI_PARAMS_NOT_SPECIFIED) + " '" + path + "'");
-//      }
-//      std::string extension = findExtension(path);
-//      if (find(requestLocation->getCgiExt().begin(), requestLocation->getCgiExt().end(), extension)
-//          == requestLocation->getCgiExt().end()) {
-//        throw ExtensionNotSupported(Logger::toString(WebServException::EXTENSION_NOT_SUPPORTED) + " '" + path + "'");
-//      }
-//      CgiHandler cgi(request, serverStruct, queryString, path, interpreter);
-//      responseBody = cgi.runScript(path, interpreter, responseStatus);
-//    } else {
-//      // create file
-//    }
+    std::string path = requestLocation->substitutePath(client.path);
+    std::string interpreter = requestLocation->getFullCgiPath(requestLocation->getCgiPath());
+    std::string queryString = extractQueryString(path);
+    std::ifstream fileStream(path);
+    std::string directory = path.substr(0, path.rfind('/'));
+    if (fileStream.fail()) {
+      // todo change all exceptions to statuses
+      if (!isDirectory(directory.c_str())) {
+        responseStatus = NOT_FOUND;
+        return;
+      }
+      postFile(path, client);
+      responseStatus = CREATED;
+      return ;
+    }
+    if (!isDirectory(path.c_str())) {
+      if (requestLocation->getCgiPath().empty() || requestLocation->getCgiExt().empty()) {
+        responseStatus = BAD_REQUEST;
+        return ;
+      }
+      std::string extension = findExtension(path);
+      bool extensionMatches = false;
+      std::vector<std::string> extensions = requestLocation->getCgiExt();
+      for (std::vector<std::string>::iterator it = extensions.begin(); it != extensions.end(); ++it) {
+        if (*it == extension) {
+          extensionMatches = true;
+          break;
+        }
+      }
+      if (!extensionMatches){
+        postFile(path, client);
+      } else {
+        CgiHandler cgi(client, server, queryString, path, interpreter);
+        responseBody = cgi.runScript(path, interpreter, responseStatus);
+      }
+    } else {
+      responseStatus = NOT_FOUND;
+    }
   }
 
   void doDelete() {
