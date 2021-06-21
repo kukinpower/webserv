@@ -253,10 +253,12 @@ class ConfigReader {
         loc.errorPage.insert(std::make_pair(BAD_REQUEST, spl[2]));
       } else if (spl[1] == "404") {
         loc.errorPage.insert(std::make_pair(NOT_FOUND, spl[2]));
+      } else if (spl[1] == "405") {
+          loc.errorPage.insert(std::make_pair(NOT_ALLOWED, spl[2]));
       } else if (spl[1] == "500") {
         loc.errorPage.insert(std::make_pair(INTERNAL_SERVER_ERROR, spl[2]));
       } else {
-        throw std::runtime_error("Config file error: Non-existing status ti match error page. Exiting...");
+        throw std::runtime_error("Config file error: Non-existing status to match error page. Exiting...");
       }
     } else {
       throw std::runtime_error("Config file error: wrong location option. Exiting...");
