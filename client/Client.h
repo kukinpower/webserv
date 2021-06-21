@@ -167,7 +167,7 @@ class Client {
       }
     }
 
-    if (length == 0) {
+    if (length == 0 || length == body.length()) {
       clientStatus = WRITE;
       return;
     }
