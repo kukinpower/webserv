@@ -236,7 +236,7 @@ class WebServer {
       fds[newClientFd].fd = newClientFd;
       fds[newClientFd].events |= POLLIN;
 
-      LOGGER.info("Client connected, fd: " + std::to_string(newClientFd)); //todo remove
+//      LOGGER.info("Client connected, fd: " + std::to_string(newClientFd));
     } catch (const RuntimeWebServException &e) {
       LOGGER.error(e.what());
     } catch (const FatalWebServException &e) {
@@ -272,7 +272,7 @@ class WebServer {
             }
 
             if (fds[currentFd].revents & POLLIN) {
-              LOGGER.info("New Connection: " + std::to_string(currentFd)); //todo remove to string
+//              LOGGER.info("New Connection: " + std::to_string(currentFd));
               handleNewConnection();
               establishedNewConnection = true;
               break;
@@ -294,7 +294,7 @@ class WebServer {
 
               // write ------------------------------------------------------------------------------------------------
               if (fds[currentFd].revents & POLLOUT) {
-                LOGGER.info("Write to: " + std::to_string(currentFd)); //todo remove tostring
+//                LOGGER.info("Write to: " + std::to_string(currentFd));
 
                 writeToClientSocket(client, clientIt);
                 client.closeClient();
@@ -303,7 +303,7 @@ class WebServer {
               }
                 // read ------------------------------------------------------------------------------------------------
               else if (fds[currentFd].revents & POLLIN) {
-                LOGGER.info("Read from: " + std::to_string(currentFd)); //todo remove tostring
+//                LOGGER.info("Read from: " + std::to_string(currentFd));
 
                 readFromClientSocket(client);
                 if (client.getClientStatus() == WRITE) {
