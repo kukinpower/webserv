@@ -167,7 +167,7 @@ class WebServer {
     fds[currentFd].events = 0;
     fds[currentFd].revents = 0;
     clientFdsMap.erase(currentFd);
-    clientsToServersMap.erase(clientIt->first);
+    delete clientIt->first;
   }
 
   void readRequestChunk(Client &client) {
@@ -236,6 +236,10 @@ class WebServer {
     }
   }
 
+  void clearAllClients() {
+
+  }
+
   void routine() {
     while (true) {
       try {
@@ -245,9 +249,7 @@ class WebServer {
           int i;
           throw PollException();
         } else if (ret == 0) {
-          for (std::vector<Server *>::iterator server = servers.begin(); server != servers.end(); ++server) {
-            (*server)->clearClients();
-          }
+          clearAllClients();
           LOGGER.info("Timeout reached. Close all connections");
         } else {
           bool establishedNewConnection = false;
@@ -272,7 +274,7 @@ class WebServer {
           if (!establishedNewConnection) {
             std::map<Client *, Server *>::iterator clientIt = clientsToServersMap.begin();
             std::map<Client *, Server *>::iterator clientIte = clientsToServersMap.end();
-            for (; clientIt != clientIte; ++clientIt) {
+            while (clientIt != clientIte) {
               currentFd = clientIt->first->getFd();
 
               if (fds[currentFd].revents == 0) {
@@ -286,10 +288,6 @@ class WebServer {
                 LOGGER.info("Write to: " + std::to_string(currentFd));
 
                 writeToClientSocket(client, clientIt);
-
-                if (client.getClientStatus() == CLOSED) {
-                  clearOneClient(clientIt);
-                }
               }
                 // read ------------------------------------------------------------------------------------------------
               else if (fds[currentFd].revents & POLLIN) {
@@ -302,11 +300,17 @@ class WebServer {
               }
 
               if (client.getClientStatus() == CLOSED) {
+//                clearOneClient(clientIt);
+                fds[currentFd].fd = 0;
+                fds[currentFd].events = 0;
+                fds[currentFd].revents = 0;
+                clientFdsMap.erase(currentFd);
                 delete clientIt->first;
                 clientIt = clientsToServersMap.erase(clientIt);
+              } else {
+                fds[currentFd].revents = 0;
+                ++clientIt;
               }
-
-              fds[currentFd].revents = 0;
             }
           }
         }

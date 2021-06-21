@@ -143,12 +143,12 @@ class Server {
     clients.push_back(newClient);
   }
 
-  void clearClients() {
-    for (std::vector<Client>::iterator client = clients.begin(); client != clients.end(); ++client) {
-      close(client->getFd());
-    }
-    clients.clear();
-  }
+//  void clearClients() {
+//    for (std::vector<Client>::iterator client = clients.begin(); client != clients.end(); ++client) {
+//      close(client->getFd());
+//    }
+//    clients.clear();
+//  }
 
   void run() {
     // 1. create listenerFd
