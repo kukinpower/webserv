@@ -26,7 +26,6 @@
 #include "Logger.h"
 #include "StringBuilder.h"
 #include "HttpStatusWrapper.h"
-#include "Request.h"
 #include "CgiHandler.h"
 
 #include "FatalWebServException.h"

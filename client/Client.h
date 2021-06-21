@@ -1,7 +1,7 @@
 #pragma once
-#include "Request.h"
 #include "Logger.h"
 #include "ClientStatus.h"
+#include "HttpMethod.h"
 
 #include "PollException.h"
 #include "BadListenerFdException.h"

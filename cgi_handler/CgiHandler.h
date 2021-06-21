@@ -4,7 +4,6 @@
 #include "FatalWebServException.h"
 #include "Logger.h"
 #include "Location.h"
-#include "Request.h"
 
 #include <unistd.h>
 #include <stdio.h>
