@@ -136,7 +136,10 @@ class Location {
       if (!f.fail())
         return *it;
     }
-    return "change return to a proper value!!! ";//was return errorPage; //should return error page if custom exists;
+    std::map<HttpStatus, std::string>::const_iterator it = errorPage.find(NOT_FOUND);
+    if (it == errorPage.end())
+      return "";
+    return it->second; //
   }
 
   std::vector<std::string> getMethodsVector() const {
@@ -160,6 +163,10 @@ class Location {
   }
 
   std::map<HttpStatus, std::string> getErrorPage() const {
+    return this->errorPage;
+  }
+
+  std::map<HttpStatus, std::string> &getErrorPageByRef() {
     return this->errorPage;
   }
 
