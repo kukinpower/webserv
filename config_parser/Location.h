@@ -20,6 +20,7 @@ class Location {
   std::vector<std::string> cgiExt;
   std::string cgiPath;
   std::map<HttpStatus, std::string> errorPage;
+  std::vector<std::pair<std::string, std::string> > redirect;
 
  public:
   Location(void) {
@@ -43,10 +44,11 @@ class Location {
            const std::string &uploadPath,
            const std::vector<std::string> &cgiExt,
            const std::string &cgiPath,
-           const std::map<HttpStatus, std::string> &errorPage)
+           const std::map<HttpStatus, std::string> &errorPage,
+           const std::vector<std::pair<std::string, std::string> > &redirect)
       : url(url), root(root), allowedMethods(vectorToSet(allowedMethodsVector)),
         autoIndex(autoIndex), index(index), uploadPath(uploadPath),
-        cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
+        cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage), redirect(redirect) {
   }
 
   ~Location() {
@@ -168,6 +170,10 @@ class Location {
 
   std::map<HttpStatus, std::string> &getErrorPageByRef() {
     return this->errorPage;
+  }
+
+  std::vector<std::pair<std::string, std::string> > getRedirect() const {
+    return this->redirect;
   }
 
   bool isAutoIndex() const {
