@@ -3,7 +3,6 @@
 #include "Client.h"
 #include "Location.h"
 #include "StringBuilder.h"
-#include "ServerStruct.h"
 
 #include "PollException.h"
 #include "BadListenerFdException.h"

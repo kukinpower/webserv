@@ -27,7 +27,6 @@
 #include "StringBuilder.h"
 #include "HttpStatusWrapper.h"
 #include "Request.h"
-#include "ServerStruct.h"
 #include "CgiHandler.h"
 
 #include "FatalWebServException.h"
@@ -53,24 +52,15 @@ class WebServer {
   static const int PORT_DEFAULT = 8080;
   static const int SERVER_TIMEOUT = 22000;
   static const int SEND_CHUNK_SIZE = 100000;
-  static const int POLL_FD_ARR_SIZE = 1024;
+  static const int POLL_FD_ARR_SIZE = 50;
 
  private:
   static Logger LOGGER;
   std::vector<Server *> servers;
 
  public:
-  WebServer() : STATUSES(initHttpStatuses()), MIME(initMimeTypes()) {}
+  WebServer() : STATUSES(initHttpStatuses()), MIME(initMimeTypes()), MAX_FILESIZE(10485760) {}
   virtual ~WebServer() {}
-
-//  WebServer(const WebServer &server) {
-//    operator=(server);
-//  }
-//
-//  WebServer &operator=(const WebServer &server) {
-//    this->servers = server.servers;
-//    return *this;
-//  }
 
  private:
   void setNonBlock(int fd) {
@@ -410,8 +400,7 @@ class WebServer {
 
   std::map<HttpStatus, std::string> STATUSES;
   MimeTypes MIME;
-  const int MAX_FILESIZE = 10485760; // 10mb
-  Headers headers;
+  const int MAX_FILESIZE; // 10mb
 
   std::string responseBody;
   HttpStatus responseStatus;
@@ -420,18 +409,6 @@ class WebServer {
   typedef std::map<std::string, std::string>::iterator iterator;
 
  private:
-  std::string joinStrings(const std::vector<std::string> &v, const std::string &sequence) {
-    std::stringstream ss;
-    for (int i = 0; i < v.size(); ++i) {
-      if (i + 1 < v.size()) {
-        ss << v[i] << "\r\n";
-      } else {
-        ss << v[i];
-      }
-    }
-    return ss.str();
-  }
-
   bool isDirectory(const char *path) {
     struct stat path_stat;
     stat(path, &path_stat);
@@ -550,7 +527,6 @@ class WebServer {
     std::ifstream fileStream(path);
     std::string directory = path.substr(0, path.rfind('/'));
     if (fileStream.fail()) {
-      // todo change all exceptions to statuses
       if (!isDirectory(directory.c_str())) {
         responseStatus = NOT_FOUND;
         return;

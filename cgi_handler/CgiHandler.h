@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ServerStruct.h"
 #include "WebServException.h"
 #include "FatalWebServException.h"
 #include "Logger.h"
