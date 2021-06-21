@@ -39,6 +39,7 @@ class WebServException : public std::exception {
   static const char *NON_BLOCK_ERROR;
 
   static const char *FILE_NOT_FOUND;
+  static const char *BAD_REQUEST;
   static const char *METHOD_NOT_ALLOWED;
   static const char *MAX_REQ_SIZE_EXCEEDED;
   static const char *CGI_PARAMS_NOT_SPECIFIED;
@@ -59,6 +60,7 @@ const char *WebServException::SEND_ERROR = "Send error";
 const char *WebServException::NON_BLOCK_ERROR = "Non block error";
 
 const char *WebServException::FILE_NOT_FOUND = "Requested path not found";
+const char *WebServException::BAD_REQUEST = "Bad request";
 const char *WebServException::METHOD_NOT_ALLOWED = "Method not allowed";
 const char *WebServException::MAX_REQ_SIZE_EXCEEDED = "Maximum request size body exceeded";
 const char *WebServException::CGI_PARAMS_NOT_SPECIFIED = "Method not allowed";

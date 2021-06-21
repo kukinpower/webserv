@@ -1,14 +1,16 @@
 #pragma once
 #include "Logger.h"
+#include "HttpStatus.h"
 
 #include <string>
 #include <vector>
 #include <set>
 #include <sstream>
 #include <fstream>
+#include <map>
 
 class Location {
- private:
+ public:
   std::string url;
   std::string root;
   std::set<HttpMethod> allowedMethods;
@@ -17,7 +19,7 @@ class Location {
   std::string uploadPath;
   std::vector<std::string> cgiExt;
   std::string cgiPath;
-  std::string errorPage;
+  std::map<HttpStatus, std::string> errorPage;
 
  public:
   Location(void) {
@@ -33,12 +35,18 @@ class Location {
     this->index.push_back("index.html");
   }
 
-  Location(const std::string& url, const std::string& root, const std::vector<std::string> &allowedMethodsVector,
-           bool autoIndex, const std::vector<std::string>& index, const std::string& uploadPath,
-           const std::vector<std::string>& cgiExt, const std::string& cgiPath, const std::string& errorPage)
+  Location(const std::string &url,
+           const std::string &root,
+           const std::vector<std::string> &allowedMethodsVector,
+           bool autoIndex,
+           const std::vector<std::string> &index,
+           const std::string &uploadPath,
+           const std::vector<std::string> &cgiExt,
+           const std::string &cgiPath,
+           const std::map<HttpStatus, std::string> &errorPage)
       : url(url), root(root), allowedMethods(vectorToSet(allowedMethodsVector)),
-		autoIndex(autoIndex), index(index), uploadPath(uploadPath),
-		cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
+        autoIndex(autoIndex), index(index), uploadPath(uploadPath),
+        cgiExt(cgiExt), cgiPath(cgiPath), errorPage(errorPage) {
   }
 
   ~Location() {
@@ -46,7 +54,6 @@ class Location {
     this->index.clear();
     this->cgiExt.clear();
   }
-
   //todo coplien form
   //Location(Location const &other){};
   //Location &operator=(Location const &other){};
@@ -59,17 +66,16 @@ class Location {
   }
 
   std::string getFullCgiPath(const std::string &path) const {
-      return root + '/' + path;
+    return root + '/' + path;
   }
 
   bool isMethodAllowed(HttpMethod method) const {
-	return allowedMethods.find(method) != allowedMethods.end();
+    return allowedMethods.find(method) != allowedMethods.end();
   }
 
   bool matches(const std::string &path) const {
-	return (path.length() == 1 && url.length() == 1 && path == url) ||
-			(path.substr(1).rfind(url.substr(1), 0) == 0);
-//			|| ((*(url.rbegin()) == '/') && path.substr(1).rfind(url.substr(1, url.length() - 2), 0) == 0);
+    return (path.length() == 1 && url.length() == 1 && path == url) ||
+        (path.substr(1).rfind(url.substr(1), 0) == 0);
   }
 
   std::string getUrl() const {
@@ -84,27 +90,26 @@ class Location {
     return this->allowedMethods;
   }
 
-
   static HttpMethod extractMethodFromStr(const std::string &method) {
-	if (method == "GET") {
-	  return GET;
-	} else if (method == "POST") {
-	  return POST;
-	} else if (method == "DELETE") {
-	  return DELETE;
-	}
-	throw std::runtime_error("Config file error: wrong server allowed method: " + method);
+    if (method == "GET") {
+      return GET;
+    } else if (method == "POST") {
+      return POST;
+    } else if (method == "DELETE") {
+      return DELETE;
+    }
+    throw std::runtime_error("Config file error: wrong server allowed method: " + method);
   }
 
   static std::string extractStringFromMethod(HttpMethod method) {
-	if (method == GET) {
-	  return "GET";
-	} else if (method == POST) {
-	  return "POST";
-	} else if (method == DELETE) {
-	  return "DELETE";
-	}
-	throw std::runtime_error("Config file error: wrong server allowed method: " + Logger::toString(method));
+    if (method == GET) {
+      return "GET";
+    } else if (method == POST) {
+      return "POST";
+    } else if (method == DELETE) {
+      return "DELETE";
+    }
+    throw std::runtime_error("Config file error: wrong server allowed method: " + Logger::toString(method));
   }
 
   std::set<HttpMethod> vectorToSet(const std::vector<std::string> &v) const {
@@ -131,7 +136,10 @@ class Location {
       if (!f.fail())
         return *it;
     }
-    return errorPage; //should return error page if custom exists;
+    std::map<HttpStatus, std::string>::const_iterator it = errorPage.find(NOT_FOUND);
+    if (it == errorPage.end())
+      return "";
+    return it->second; //
   }
 
   std::vector<std::string> getMethodsVector() const {
@@ -154,7 +162,11 @@ class Location {
     return this->cgiPath;
   }
 
-  std::string getErrorPage() const {
+  std::map<HttpStatus, std::string> getErrorPage() const {
+    return this->errorPage;
+  }
+
+  std::map<HttpStatus, std::string> &getErrorPageByRef() {
     return this->errorPage;
   }
 

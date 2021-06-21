@@ -3,7 +3,6 @@
 #include "Client.h"
 #include "Location.h"
 #include "StringBuilder.h"
-#include "ServerStruct.h"
 
 #include "PollException.h"
 #include "BadListenerFdException.h"
@@ -28,14 +27,13 @@
 #include <string>
 
 class Server {
- private:
+ public:
   // tools
   static Logger LOGGER;
   // constants
   static const int TCP = 0;
   static const int BACKLOG = 5;
   // vars
-  std::vector<Client> clients;
   int port;
   std::string hostName;
   std::string serverName;
@@ -75,7 +73,6 @@ class Server {
   }
 
   Server &operator=(const Server &server) {
-    this->clients = server.clients;
     this->maxBodySize = server.maxBodySize;
     this->listenerFd = server.listenerFd;
     this->port = server.port;
@@ -126,30 +123,6 @@ class Server {
   }
 
  public:
-
-  void acceptConnectionPoll() {
-    struct sockaddr addr;
-    socklen_t socklen;
-    int newClientFd;
-
-    // if no connection, accept is blocking process and start waiting
-    if ((newClientFd = accept(listenerFd, (struct sockaddr *) &addr, &socklen)) == -1) {
-      throw AcceptException();
-    }
-    // set nonblock
-    setNonBlock(newClientFd);
-
-    Client newClient(newClientFd);
-    clients.push_back(newClient);
-  }
-
-  void clearClients() {
-    for (std::vector<Client>::iterator client = clients.begin(); client != clients.end(); ++client) {
-      close(client->getFd());
-    }
-    clients.clear();
-  }
-
   void run() {
     // 1. create listenerFd
     createSocket();
@@ -162,19 +135,6 @@ class Server {
     // check that port is listening:
     // netstat -a -n | grep LISTEN
     startListening();
-  }
-
-  Client &findClientByFd(int fd) {
-    for (std::vector<Client>::iterator client = clients.begin(); client != clients.end(); ++client) {
-      if (client->getFd() == fd) {
-        return *client;
-      }
-    }
-    throw NoSuchClientException();
-  }
-
-  std::vector<Client> &getAllClients() {
-    return clients;
   }
 
   int getListenerFd() const {
@@ -201,21 +161,8 @@ class Server {
     return this->maxBodySize;
   }
 
-  std::vector<Location> getLocations() const {
+  std::vector<Location> &getLocations() {
     return this->locations;
-  }
-
-  void eraseClient(Client &client) {
-    for (std::vector<Client>::iterator pos = clients.begin(); pos != clients.end(); ++pos) {
-      if (pos->getFd() == client.getFd()) {
-        clients.erase(pos);
-        break;
-      }
-    }
-  }
-
-  ServerStruct createServerStruct() const {
-    return ServerStruct(port, hostName, serverName, maxBodySize, locations);
   }
 };
 

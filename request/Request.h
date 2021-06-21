@@ -31,6 +31,7 @@ class Request {
       : method(method), path(path), headers(headers), body(body), status(status) {}
 
   virtual ~Request() {}
+
   Request(const Request &request) {
     operator=(request);
   }

@@ -1,6 +1,5 @@
 #pragma once
 #include "Request.h"
-#include "Response.h"
 #include "Logger.h"
 #include "ClientStatus.h"
 
@@ -24,40 +23,48 @@
 #include <iostream>
 
 class Client {
- private:
-  static const int BUF_SIZE = 256;
-  static const int REQUEST_END_LENGTH = 4;
-  static const char *REQUEST_END;
- private:
+ public:
   int fd;
-  std::string requestBody;
+  std::string fullRequestBody;
   static Logger LOGGER;
-  std::vector<Request> requests;
-  size_t cursorLength;
+  int length; // 0 | >0
+  HttpMethod method;
+  std::string path;
+  std::string body;
   ClientStatus clientStatus;
+  bool containsRequestEnd;
+
+  // split headers and body -----------------------------------
+  std::size_t REQUEST_END_LENGTH;
+  std::string REQUEST_END;
+  const char *REQUEST_END_CONST_CHAR;
+
+  // split request --------------------------------------------
+  std::string HEADER_DELIMETER;
+  std::size_t HEADER_DELIMETER_LENGTH;
+
+  // split headers --------------------------------------------
+  std::string HEADER_PAIR_DELIMETER;
+  std::size_t HEADER_PAIR_DELIMETER_LENGTH;
 
  public:
-  Client(int fd) : fd(fd), clientStatus(READ) {}
-  virtual ~Client() {}
-
-  Client(const Client &request) {
-    operator=(request);
+  void clearInfo() {
+    length = 0;
+    method = UNKNOWN_METHOD;
+    path.clear();
+    body.clear();
+    clientStatus = READ;
+    containsRequestEnd = false;
   }
 
-  Client &operator=(const Client &request) {
-    this->fd = request.fd;
-    this->requestBody = request.requestBody;
-    this->requests = request.requests;
-    this->clientStatus = request.clientStatus;
-    return *this;
+ public:
+  Client(int fd) : fd(fd), length(0), method(UNKNOWN_METHOD), clientStatus(READ), containsRequestEnd(false),
+                   REQUEST_END_LENGTH(4), REQUEST_END("\r\n\r\n"), REQUEST_END_CONST_CHAR("\r\n\r\n"),
+                   HEADER_DELIMETER("\r\n"), HEADER_DELIMETER_LENGTH(2),
+                   HEADER_PAIR_DELIMETER(": "), HEADER_PAIR_DELIMETER_LENGTH(2) {
   }
 
-  bool operator <(const Client &b) const {
-    return this->fd < b.fd;
-  }
-
-  bool operator <(Client &b) {
-    return this->fd < b.fd;
+  virtual ~Client() {
   }
 
  public:
@@ -65,124 +72,113 @@ class Client {
     return fd;
   }
 
-  void appendToRequest(char *chunk) {
-    requestBody += chunk;
-  }
-
-  std::string getRequest() const {
-    return requestBody;
-  }
-
-  bool containsRequestEnd() {
-    return requestBody.find(REQUEST_END) != std::string::npos;
-  }
-
- private:
-
-  std::string getMainLine(const std::string &headerFull) {
-	return headerFull.substr(0, headerFull.find("\r\n"));
-  }
-  
-  void appendBodyToCurrentRequest() {
-	Request &request = requests.back();
-
-	unsigned long currentRequestBodyLength = request.getBody().length();
-	size_t lengthFromHeaders = request.getLength();
-
-	request.setBody(request.getBody() + requestBody.substr(0, lengthFromHeaders - currentRequestBodyLength));
-	requestBody.erase(0, lengthFromHeaders - currentRequestBodyLength);
-
-	if (request.getBody().length() == lengthFromHeaders) {
-	  request.setStatus(READY);
-	}
-  }
-
-  // todo use cursorLength ?
-  void parseRequests() {
-    size_t pos = 0;
-    std::string headersToken;
-    while ((pos = requestBody.find(REQUEST_END)) != std::string::npos) {
-		const std::string &headerFull = requestBody.substr(0, pos);
-
-		const std::string &mainLine = getMainLine(headerFull);
-		HttpMethod method = Request::extractMethod(mainLine);
-		const std::string &path = Request::extractPath(mainLine);
-
-		Request::Headers requestHeaders = Request::extractHttpHeaders(headerFull, pos);
-		pos += REQUEST_END_LENGTH;
-		std::string body = "";
-
-		// todo what if not full body is read?
-		if (Request::isConnectionClose(requestHeaders)) {
-		  body = requestBody.substr(pos);
-		  requests.push_back(Request(method, path, requestHeaders, body));
-		  return;
-		}
-
-		requestBody = requestBody.erase(0, pos);
-
-		RequestStatus requestStatus = READY;
-
-		if (Request::hasBodyLength(requestHeaders)) {
-		  size_t length = Request::getLengthFromHeaders(requestHeaders);
-		  body = requestBody.substr(0, length);
-		  requestBody = requestBody.erase(0, length);
-		  if (body.length() < length) {
-		  	requestStatus = WAITING_BODY;
-		  }
-		}
-		requests.push_back(Request(method, path, requestHeaders, body, requestStatus));
-    }
-  }
-
-  void readRequestChunk() {
-    long bytesRead;
-    char buf[BUF_SIZE + 1];
-
-    if ((bytesRead = recv(fd, buf, BUF_SIZE, 0)) == -1) {
-      throw ReadException();
-    }
-    if (bytesRead == 0) {
-      clientStatus = CLOSED;
-      close(fd);
-      return;
-    }
-    buf[bytesRead] = 0;
-    appendToRequest(buf);
-    LOGGER.debug(std::string(buf));
-  }
-
-  bool hasRequestWaitingBody() const {
-	return !requests.empty() && requests.back().getStatus() == WAITING_BODY;
+  bool isContainsRequestEnd() {
+    return containsRequestEnd;
   }
 
  public:
-  bool isReadyToWrite() const {
-	return requests.size() > 1 || (requests.size() == 1 && requests.front().getStatus() == READY);
-  }
+  void appendToRequestBody(char *buf) {
+    fullRequestBody.append(buf);
 
-  void processReading() {
-    readRequestChunk();
-    if (hasRequestWaitingBody()) {
-      appendBodyToCurrentRequest();
-    }
-    if (containsRequestEnd()) {
-      parseRequests();
+    char *requestEndFound = NULL;
+    requestEndFound = strstr(buf, REQUEST_END_CONST_CHAR);
+    if (requestEndFound) {
+      containsRequestEnd = true;
     }
   }
 
-  std::vector<Request> &getRequests() {
-    return requests;
+  void appendToBody(char *buf) {
+    body.append(buf);
+    if (length < body.length()) {
+      return closeClient();
+    }
+    if (length == body.length()) {
+      clientStatus = WRITE;
+    }
+  }
+
+  HttpMethod extractMethod(const std::string &line) {
+    if ("GET" == line) {
+      return GET;
+    }
+    if ("POST" == line) {
+      return POST;
+    }
+    if ("DELETE" == line) {
+      return DELETE;
+    }
+    return UNKNOWN_METHOD;
+  }
+
+  void closeClient() {
+    close(fd);
+    clientStatus = CLOSED;
+  }
+
+  void parseRequest() {
+    // split headers and body ------------------------------------------------------------------------------------
+    std::size_t start = 0U;
+    std::size_t end = fullRequestBody.find(REQUEST_END);
+
+    std::string head = fullRequestBody.substr(start, end);
+    body = fullRequestBody.substr(end + REQUEST_END_LENGTH);
+
+    // split request ------------------------------------------------------------------------------------
+    std::vector<std::string> lines;
+
+    start = 0U;
+    end = head.find(HEADER_DELIMETER);
+    while (end != std::string::npos) {
+      lines.push_back(head.substr(start, end - start));
+      start = end + HEADER_DELIMETER_LENGTH;
+      end = head.find(HEADER_DELIMETER, start);
+    }
+
+    lines.push_back(head.substr(start, end));
+
+    // split main line ------------------------------------------------------------------------------------
+    start = 0U;
+    end = lines.front().find(' ');
+    if (end == std::string::npos) {
+      return closeClient();
+    }
+    // HTTP METHOD
+    method = extractMethod(lines.front().substr(start, end - start));
+    start = end + 1;
+    end = fullRequestBody.find(' ', start);
+    // PATH
+    path = lines.front().substr(start, end - start);
+
+    if (method == UNKNOWN_METHOD) {
+      return closeClient();
+    }
+
+    // split headers --------------------------------------------
+    size_t pos;
+    for (int i = 0; i < lines.size(); ++i) {
+      if ((pos = lines[i].find("Content-Length", 0)) != std::string::npos) {
+        length = std::atoi(lines[i].substr(pos + 16, lines[i].length()).c_str());
+      }
+    }
+
+    if (length == 0 || length == body.length()) {
+      clientStatus = WRITE;
+      return;
+    }
+
+    if (length > body.length()) {
+      clientStatus = WAITING_BODY;
+      return;
+    }
+
+    if (length < body.length()) {
+      return closeClient();
+    }
   }
 
   ClientStatus getClientStatus() const {
     return clientStatus;
   }
-
-  void setClientStatus(ClientStatus client_status) {
-    clientStatus = client_status;
-  }
 };
 
 Logger Client::LOGGER(Logger::DEBUG);
-const char *Client::REQUEST_END = "\r\n\r\n";

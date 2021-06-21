@@ -1,5 +1,5 @@
 #pragma once
 
 enum ClientStatus {
-  READ, CLOSED
+  READ, WAITING_BODY, WRITE, CLOSED
 };
