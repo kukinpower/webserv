@@ -120,7 +120,26 @@ class WebServer {
 
     // if was error status, send error response
     if (isErrorStatus()) {
-      const std::string &errorResponse = requestLocation->errorPage[responseStatus];
+//      const std::string &errorResponse = requestLocation->errorPage[responseStatus];
+      const std::string &errorResponse =
+          "HTTP/1.1 404 Not found\r\n"
+          "Content-Length: 370\r\n"
+          "Content-Type: text/html\r\n"
+          "Connection: close\r\n\r\n"
+          "<!doctype html>\n"
+                                         "<html lang=\"en\">\n"
+                                         "<head>\n"
+                                         "    <meta charset=\"UTF-8\">\n"
+                                         "    <meta name=\"viewport\"\n"
+                                         "          content=\"width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0\">\n"
+                                         "    <meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\">\n"
+                                         "    <title>Hello!</title>\n"
+                                         "</head>\n"
+                                         "<body>\n"
+                                         "    <h1>404</h1>\n"
+                                         "    <h2>Content not found</h2>\n"
+                                         "</body>\n"
+                                         "</html>";
       if ((bytesWritten = send(currentFd, errorResponse.c_str(), errorResponse.length(), 0)) == -1) {
         return;
       }
@@ -227,7 +246,7 @@ class WebServer {
       fds[newClientFd].fd = newClientFd;
       fds[newClientFd].events |= POLLIN;
 
-      LOGGER.info("Client connected, fd: " + std::to_string(newClientFd));
+      LOGGER.info("Client connected, fd: " + std::to_string(newClientFd)); //todo remove
     } catch (const RuntimeWebServException &e) {
       LOGGER.error(e.what());
     } catch (const FatalWebServException &e) {
@@ -249,7 +268,7 @@ class WebServer {
           throw PollException(); // todo handle this
         } else if (ret == 0) {
           clearAllClients(); // todo handle this
-          LOGGER.info("Timeout reached. Close all connections");
+//          LOGGER.info("Timeout reached. Close all connections");
         } else {
           bool establishedNewConnection = false;
           // new connection ------------------------------------------------------------------------------------------
@@ -263,7 +282,7 @@ class WebServer {
             }
 
             if (fds[currentFd].revents & POLLIN) {
-              LOGGER.info("New Connection: " + std::to_string(currentFd));
+              LOGGER.info("New Connection: " + std::to_string(currentFd)); //todo remove to string
               handleNewConnection();
               establishedNewConnection = true;
               break;
@@ -285,7 +304,7 @@ class WebServer {
 
               // write ------------------------------------------------------------------------------------------------
               if (fds[currentFd].revents & POLLOUT) {
-                LOGGER.info("Write to: " + std::to_string(currentFd));
+                LOGGER.info("Write to: " + std::to_string(currentFd)); //todo remove tostring
 
                 writeToClientSocket(client, clientIt);
                 client.closeClient();
@@ -294,7 +313,7 @@ class WebServer {
               }
                 // read ------------------------------------------------------------------------------------------------
               else if (fds[currentFd].revents & POLLIN) {
-                LOGGER.info("Read from: " + std::to_string(currentFd));
+                LOGGER.info("Read from: " + std::to_string(currentFd)); //todo remove tostring
 
                 readFromClientSocket(client);
                 if (client.getClientStatus() == WRITE) {
@@ -303,7 +322,6 @@ class WebServer {
               }
 
               if (client.getClientStatus() == CLOSED) {
-//                clearOneClient(clientIt);
                 fds[currentFd].fd = 0;
                 fds[currentFd].events = 0;
                 fds[currentFd].revents = 0;
@@ -409,18 +427,6 @@ class WebServer {
     return responseStatus != OK && responseStatus != CREATED && responseStatus != NO_CONTENT;
   }
 
-  std::string getContentType(const std::string &path) {
-    unsigned long pos;
-    if ((pos = path.find_last_of('.')) != std::string::npos) {
-      std::string mimeType = path.substr(pos);
-      MimeTypes::const_iterator it;
-      if ((it = MIME.find(mimeType)) != MIME.end()) {
-        return it->second;
-      }
-    }
-    return MIME.find(".html")->second;
-  }
-
   void generateAutoIndex(Client &client, Server &server, const std::string &path) {
     DIR *dir = opendir(path.c_str());
     if (dir != NULL) {
@@ -477,14 +483,6 @@ class WebServer {
     fileStream.read(&buffer[0], length);
 
     responseBody = std::string(buffer.begin(), buffer.end());
-  }
-
-  std::string getDocumentContentByPath(const std::string &path) {
-    std::ifstream fileStream(path);
-    if (fileStream.fail()) {
-      throw RuntimeWebServException();
-    }
-    return getDocumentContent(fileStream);
   }
 
   void doGet(Client &client, Server &server) {

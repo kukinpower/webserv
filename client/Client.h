@@ -59,9 +59,9 @@ class Client {
 
  public:
   Client(int fd) : fd(fd), length(0), method(UNKNOWN_METHOD), clientStatus(READ), containsRequestEnd(false),
-                    REQUEST_END_LENGTH(4), REQUEST_END("\r\n\r\n"), REQUEST_END_CONST_CHAR("\r\n\r\n"),
-                    HEADER_DELIMETER("\r\n"), HEADER_DELIMETER_LENGTH(2),
-                    HEADER_PAIR_DELIMETER(": "), HEADER_PAIR_DELIMETER_LENGTH(2) {
+                   REQUEST_END_LENGTH(4), REQUEST_END("\r\n\r\n"), REQUEST_END_CONST_CHAR("\r\n\r\n"),
+                   HEADER_DELIMETER("\r\n"), HEADER_DELIMETER_LENGTH(2),
+                   HEADER_PAIR_DELIMETER(": "), HEADER_PAIR_DELIMETER_LENGTH(2) {
   }
 
   virtual ~Client() {
@@ -82,7 +82,7 @@ class Client {
 
     char *requestEndFound = NULL;
     requestEndFound = strstr(buf, REQUEST_END_CONST_CHAR);
-    if(requestEndFound) {
+    if (requestEndFound) {
       containsRequestEnd = true;
     }
   }
@@ -136,12 +136,6 @@ class Client {
 
     lines.push_back(head.substr(start, end));
 
-    //debug watch here
-    std::cout << "PRINT SPLITTED STRINGS--------------------------------------------" << std::endl;
-    for (const auto &line : lines) {
-      std::cout << line << std::endl;
-    }
-
     // split main line ------------------------------------------------------------------------------------
     start = 0U;
     end = lines.front().find(' ');
@@ -180,21 +174,11 @@ class Client {
     if (length < body.length()) {
       return closeClient();
     }
-}
+  }
 
-ClientStatus getClientStatus() const {
-  return clientStatus;
-}
-
-void setClientStatus(ClientStatus client_status) {
-  clientStatus = client_status;
-}
-
-// RESPONSE ---------------------------------------------------------------------------------------------
-
-
-
-
+  ClientStatus getClientStatus() const {
+    return clientStatus;
+  }
 };
 
 Logger Client::LOGGER(Logger::DEBUG);
