@@ -237,7 +237,7 @@ class WebServer {
       fds[newClientFd].fd = newClientFd;
       fds[newClientFd].events |= POLLIN;
 
-//      LOGGER.info("Client connected, fd: " + std::to_string(newClientFd));
+      LOGGER.info("Client connected, fd: " + std::to_string(newClientFd));
     } catch (const RuntimeWebServException &e) {
       LOGGER.error(e.what());
     } catch (const FatalWebServException &e) {
@@ -274,7 +274,7 @@ class WebServer {
           throw PollException();
         } else if (ret == 0) {
           clearAllClients();
-//          LOGGER.info("Timeout reached. Close all connections");
+          LOGGER.info("Timeout reached. Close all connections");
         } else {
           bool establishedNewConnection = false;
           // new connection ------------------------------------------------------------------------------------------
@@ -288,7 +288,7 @@ class WebServer {
             }
 
             if (fds[currentFd].revents & POLLIN) {
-//              LOGGER.info("New Connection: " + std::to_string(currentFd));
+              LOGGER.info("New Connection: " + std::to_string(currentFd));
               handleNewConnection();
               establishedNewConnection = true;
               break;
@@ -310,7 +310,7 @@ class WebServer {
 
               // write ------------------------------------------------------------------------------------------------
               if (fds[currentFd].revents & POLLOUT) {
-//                LOGGER.info("Write to: " + std::to_string(currentFd));
+                LOGGER.info("Write to: " + std::to_string(currentFd));
 
                 writeToClientSocket(client, clientIt);
                 client.closeClient();
@@ -319,7 +319,7 @@ class WebServer {
               }
                 // read ------------------------------------------------------------------------------------------------
               else if (fds[currentFd].revents & POLLIN) {
-//                LOGGER.info("Read from: " + std::to_string(currentFd));
+                LOGGER.info("Read from: " + std::to_string(currentFd));
 
                 readFromClientSocket(client);
                 if (client.getClientStatus() == WRITE) {
@@ -399,7 +399,7 @@ class WebServer {
   void run() {
     std::vector<Server *>::iterator server = servers.begin();
 
-    fds = new struct pollfd[POLL_FD_ARR_SIZE]; // todo remember to clear memory
+    fds = new struct pollfd[POLL_FD_ARR_SIZE];
     memset(fds, 0, sizeof(struct pollfd) * POLL_FD_ARR_SIZE);
 
     while (server != servers.end()) {
@@ -604,9 +604,9 @@ class WebServer {
                      "    <h1>File deleted.</h1>\n"
                      "  </body>\n"
                      "</html>";
-      responseStatus = OK; // unstoppable "Select error" here
+      responseStatus = OK;
     } else {
-      responseStatus = NOT_FOUND; // hangs here, status showing only after process stops
+      responseStatus = NOT_FOUND;
     }
   }
 
